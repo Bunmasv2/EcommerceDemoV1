@@ -1,0 +1,21 @@
+# Git ignore file for Ecommerce project
+# ─── .env (SENSITIVE - NEVER commit) ─────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ─── .NET artifacts ───────────────────────────────────────────
+bin/
+obj/
+*.user
+*.suo
+.vs/
+*.vssscc
+
+# ─── Build outputs ────────────────────────────────────────────
+publish/
+out/
+
+# ─── Logs ─────────────────────────────────────────────────────
+logs/
+*.log
