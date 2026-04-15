@@ -1,12 +1,12 @@
 using MediatR;
 using EcommerceDemoV1.Application.DTOs.Product;
 
-namespace EcommerceDemoV1.Application.Features.Product.Commands.CreateProduct;
-
-public record CreateProductCommand(
+public record UpdateProductCommand(
+    int Id,
     string Name,
     int CategoryId,
     decimal BasePrice,
     string? Description,
     string? ImageUrl
-) : IRequest<int>;
+// List<ProductVariantDto> Variants
+) : IRequest<Unit>; // Dùng Unit thay cho void trong MediatR

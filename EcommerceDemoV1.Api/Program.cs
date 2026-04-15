@@ -6,6 +6,9 @@ using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using EcommerceDemoV1.Application;
 using EcommerceDemoV1.Infrastructure;
+using EcommerceDemoV1.Api.Extensions;
+
+using EcommerceDemoV1.Infrastructure;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
 
@@ -18,7 +21,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"]
-          ?? Environment.GetEnvironmentVariable("JWT_KEY");
+        ?? Environment.GetEnvironmentVariable("JWT_KEY");
 
 builder.Services.AddAuthentication(options =>
 {
@@ -27,7 +30,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    var key = Encoding.UTF8.GetBytes(jwtKey);
+    var key = Encoding.UTF8.GetBytes(jwtKey!);
 
     options.TokenValidationParameters = new TokenValidationParameters
     {
@@ -42,20 +45,13 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Authorization
 builder.Services.AddAuthorization(option =>
 {
     option.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"));
     option.AddPolicy("UserOnly", policy => policy.RequireRole("User"));
 });
 
-// Swagger
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-var app = builder.Build();
-
-app.UseSwagger();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -65,7 +61,6 @@ builder.Services.AddSwaggerGen(c =>
         Description = "API documentation for Affiliate.Api"
     });
 
-    // JWT vào Swagger
     var securityScheme = new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -78,7 +73,7 @@ builder.Services.AddSwaggerGen(c =>
 
     c.AddSecurityDefinition("Bearer", securityScheme);
 
-    var securityRequirement = new OpenApiSecurityRequirement
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
             new OpenApiSecurityScheme
@@ -91,16 +86,18 @@ builder.Services.AddSwaggerGen(c =>
             },
             Array.Empty<string>()
         }
-    };
-
-    c.AddSecurityRequirement(securityRequirement);
+    });
 });
 
+var app = builder.Build();
+
+// Middleware
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Endpoints
-// app.MapEndpoints();
+app.MapEndpoints();
 
 app.Run();

@@ -16,9 +16,9 @@ public static class DependencyInjection
             options.UseSqlServer(connectionString));
 
         // // Repositories
-        // services.AddScoped<IUserRepository, UserRepository>();
-        // services.AddScoped<IJwtRepository, JwtRepository>();
-        // services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IJwtRepository, JwtRepository>();
+        services.AddScoped<IProductRepository, ProductRepository>();
         // services.AddScoped<ICartRepository, CartRepository>();
         // services.AddScoped<IOrderRepository, OrderRepository>();
         // services.AddScoped<ICouponRepository, CouponRepository>();
@@ -28,7 +28,7 @@ public static class DependencyInjection
         // services.AddScoped<IVnPayService, VnPayService>();
 
         // // UnitOfWork
-        // services.AddScoped<IUnitOfWork, UnitOfWork>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
     }
