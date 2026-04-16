@@ -25,6 +25,7 @@ public class GetProductVariantAdminQueryHandler : IRequestHandler<GetProductVari
         var productDtos = items.Select(p => new ProductVariantDto
         {
             Id = p.Id,
+            ProductId = p.ProductId,
             SKU = p.SKU,
             Color = p.Color,
             Size = p.Size,

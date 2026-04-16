@@ -27,6 +27,7 @@ public class GetProductVariantByIdQueryHandler : IRequestHandler<GetProductVaria
         return new ProductVariantDto
         {
             Id = productVariant.Id,
+            ProductId = productVariant.ProductId,
             SKU = productVariant.SKU,
             Color = productVariant.Color,
             Size = productVariant.Size,

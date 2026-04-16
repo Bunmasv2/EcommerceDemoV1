@@ -37,6 +37,7 @@ public class GetProductsQueryHandler : IRequestHandler<GetProductsQuery, PagedRe
             Variants = p.Variants.Select(v => new ProductVariantDto
             {
                 Id = v.Id,
+                ProductId = v.ProductId,
                 SKU = v.SKU,
                 Color = v.Color,
                 Size = v.Size,

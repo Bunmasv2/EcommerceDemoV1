@@ -5,8 +5,9 @@ namespace EcommerceDemoV1.Application.Features.ProductVariant.Commands.UpdatePro
 public record UpdateProductVariantCommand(
     int Id,
     int ProductId,
-    string Color,
-    string Size,
-    decimal Price,
-    int StockStockQuantity
+    string? SKU,
+    string? Color,
+    string? Size,
+    decimal? Price,
+    int? StockQuantity
 ) : IRequest<Result<ProductVariantDto>>;

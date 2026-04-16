@@ -16,32 +16,33 @@ public class UpdateProductVariantCommandHandler : IRequestHandler<UpdateProductV
 
     public async Task<Result<ProductVariantDto>> Handle(UpdateProductVariantCommand request, CancellationToken cancellationToken)
     {
-        var existingVariant = await _productVariantRepository.ExistsAsync(request.Id);
-        if (!existingVariant)
+        var variant = await _productVariantRepository.GetByIdAsync(request.Id);
+
+        if (variant == null)
         {
             return Result<ProductVariantDto>.Failure($"Product variant with ID {request.Id} not found.");
         }
 
-        var variantUpdate = new EcommerceDemoV1.Domain.Entities.ProductVariant
-        {
-            Id = request.Id,
-            ProductId = request.ProductId,
-            Color = request.Color,
-            Size = request.Size,
-            Price = request.Price,
-            StockQuantity = request.StockStockQuantity
-        };
+        variant.SKU = request.SKU ?? variant.SKU;
+        variant.Color = request.Color ?? variant.Color;
+        variant.Size = request.Size ?? variant.Size;
+        variant.Price = request.Price ?? variant.Price;
+        variant.StockQuantity = request.StockQuantity ?? variant.StockQuantity;
 
-        await _productVariantRepository.UpdateAsync(variantUpdate);
+        if (request.ProductId != 0) variant.ProductId = request.ProductId;
+
+        await _productVariantRepository.UpdateAsync(variant);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var variantDto = new ProductVariantDto
         {
-            Id = variantUpdate.Id,
-            Color = variantUpdate.Color,
-            Size = variantUpdate.Size,
-            Price = variantUpdate.Price,
-            StockQuantity = variantUpdate.StockQuantity
+            Id = variant.Id,
+            ProductId = variant.ProductId,
+            SKU = variant.SKU,
+            Color = variant.Color,
+            Size = variant.Size,
+            Price = variant.Price,
+            StockQuantity = variant.StockQuantity
         };
 
         return Result<ProductVariantDto>.Success(variantDto);

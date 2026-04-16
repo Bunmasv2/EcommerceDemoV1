@@ -4,12 +4,16 @@ using EcommerceDemoV1.Domain.Entities;
 public class RegisterUserHandler : IRequestHandler<RegisterUserCommand, int>
 {
     private readonly IUserRepository _userRepository;
+    private readonly IJwtService _jwtService;
+    private readonly IPasswordService _passwordService;
     private readonly IUnitOfWork _unitOfWork;
 
-    public RegisterUserHandler(IUserRepository userRepository, IUnitOfWork unitOfWork)
+    public RegisterUserHandler(IUserRepository userRepository, IUnitOfWork unitOfWork, IJwtService jwtService, IPasswordService passwordService)
     {
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
+        _jwtService = jwtService;
+        _passwordService = passwordService;
     }
 
     public async Task<int> Handle(RegisterUserCommand request, CancellationToken cancellationToken)
@@ -20,8 +24,7 @@ public class RegisterUserHandler : IRequestHandler<RegisterUserCommand, int>
             throw new Exception("Email already exists");
 
         // Hash password
-        var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-
+        var passwordHash = await _passwordService.HashPasswordAsync(request.Password);
 
         var user = new User
         {

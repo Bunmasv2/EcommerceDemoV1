@@ -30,6 +30,7 @@ public class GetProductVariantQueryHandler : IRequestHandler<GetProductVariantQu
         var productDtos = items.Items.Select(p => new ProductVariantDto
         {
             Id = p.Id,
+            ProductId = p.ProductId,
             SKU = p.SKU,
             Color = p.Color,
             Size = p.Size,
