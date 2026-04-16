@@ -1,7 +1,7 @@
 using FluentValidation;
 using MediatR;
 
-namespace EcommerceDemoV1.WebAPI.Endpoints;
+namespace EcommerceDemoV1.Api.Endpoints;
 
 public static class AuthEndpoints
 {

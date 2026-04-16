@@ -6,7 +6,7 @@ using EcommerceDemoV1.Application.Features.Product.Commands.DeleteProduct;
 using EcommerceDemoV1.Application.Features.Product.Queries.GetProductById;
 using EcommerceDemoV1.Application.Features.Product.Queries.GetProduct;
 
-namespace EcommerceDemoV1.WebAPI.Endpoints;
+namespace EcommerceDemoV1.Api.Endpoints;
 
 public static class ProductEndpoints
 {

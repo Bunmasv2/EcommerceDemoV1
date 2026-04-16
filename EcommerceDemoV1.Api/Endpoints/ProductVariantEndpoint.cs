@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using FluentValidation;
 using EcommerceDemoV1.Application.Features.ProductVariant.Commands.UpdateProductVariant;
 using EcommerceDemoV1.Application.Features.ProductVariant.Commands.DeleteProductVariant;
 using EcommerceDemoV1.Application.Features.ProductVariant.Commands.CreateProductVariant;
@@ -8,7 +9,7 @@ using EcommerceDemoV1.Application.Features.ProductVariant.Queries.GetProductVari
 
 
 
-namespace EcommerceDemoV1.WebAPI.Endpoints;
+namespace EcommerceDemoV1.Api.Endpoints;
 
 public static class ProductVariantEndpoints
 {
@@ -17,9 +18,16 @@ public static class ProductVariantEndpoints
         var group = app.MapGroup("/api/v1/variants").WithTags("Variants");
 
         group.MapPost("/", async (
-            [FromBody] CreateProductVariantCommand command,
-            IMediator mediator) =>
+            CreateProductVariantCommand command,
+            IMediator mediator,
+            IValidator<CreateProductVariantCommand> validator) =>
         {
+            var validationResult = await validator.ValidateAsync(command);
+            if (!validationResult.IsValid)
+            {
+                return Results.BadRequest(validationResult.ToDictionary());
+            }
+
             var variant = await mediator.Send(command);
             return Results.Ok(new { success = true, variant, message = "Product variant created successfully" });
         })
@@ -28,9 +36,16 @@ public static class ProductVariantEndpoints
         group.MapPut("/{id:int}", async (
             int id,
             [FromBody] UpdateProductVariantCommand bodyCommand,
-            IMediator mediator) =>
+            IMediator mediator,
+            UpdateProductVariantCommandValidator validator) =>
         {
             var command = bodyCommand with { Id = id };
+
+            var validationResult = await validator.ValidateAsync(command);
+            if (!validationResult.IsValid)
+            {
+                return Results.BadRequest(validationResult.Errors);
+            }
 
             var result = await mediator.Send(command);
             if (!result.IsSuccess)
@@ -43,9 +58,17 @@ public static class ProductVariantEndpoints
 
         group.MapDelete("/{id:int}", async (
             int id,
-            IMediator mediator) =>
+            IMediator mediator,
+            DeleteProductVariantCommandValidator validator) =>
         {
-            var result = await mediator.Send(new DeleteProductVariantCommand(id));
+            var command = new DeleteProductVariantCommand(id);
+            var validationResult = await validator.ValidateAsync(command);
+            if (!validationResult.IsValid)
+            {
+                return Results.BadRequest(validationResult.Errors);
+            }
+
+            var result = await mediator.Send(command);
             if (!result.IsSuccess)
             {
                 return Results.NotFound(new { success = false, message = result.ErrorMessage });

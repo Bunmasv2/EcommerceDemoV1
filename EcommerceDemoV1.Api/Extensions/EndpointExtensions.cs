@@ -1,4 +1,4 @@
-using EcommerceDemoV1.WebAPI.Endpoints;
+using EcommerceDemoV1.Api.Endpoints;
 
 namespace EcommerceDemoV1.Api.Extensions;
 
@@ -9,6 +9,7 @@ public static class EndpointExtensions
         app.MapAuthEndpoints();
         app.MapProductEndpoints();
         app.MapProductVariantEndpoints();
+        app.MapCartEndpoints();
         // app.MapOrderEndpoints();
     }
 }
