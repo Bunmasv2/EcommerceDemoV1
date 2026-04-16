@@ -4,12 +4,14 @@ using MediatR;
 public class LoginUserHandler : IRequestHandler<LoginUserCommand, AuthResponse>
 {
     private readonly IUserRepository _userRepository;
-    private readonly IJwtRepository _jwtRepository;
+    private readonly IJwtService _jwtService;
+    private readonly IPasswordService _passwordService;
 
-    public LoginUserHandler(IUserRepository userRepository, IJwtRepository jwtRepository)
+    public LoginUserHandler(IUserRepository userRepository, IJwtService jwtService, IPasswordService passwordService)
     {
         _userRepository = userRepository;
-        _jwtRepository = jwtRepository;
+        _jwtService = jwtService;
+        _passwordService = passwordService;
     }
     public async Task<AuthResponse> Handle(LoginUserCommand loginUserCommand, CancellationToken cancellationToken)
     {
@@ -18,12 +20,12 @@ public class LoginUserHandler : IRequestHandler<LoginUserCommand, AuthResponse>
         if (user == null)
             throw new Exception("Invalid email or password");
 
-        var validPassword = BCrypt.Net.BCrypt.Verify(loginUserCommand.Password, user.PasswordHash);
+        var validPassword = await _passwordService.VerifyPasswordAsync(user.PasswordHash, loginUserCommand.Password);
         if (!validPassword)
             throw new Exception("Invalid email or password");
         return new AuthResponse
         {
-            AccessToken = _jwtRepository.GenerateToken(user.Id, user.Email, user.Role),
+            AccessToken = _jwtService.GenerateToken(user.Id, user.Email, user.Role),
             infoUser = new
             {
                 user.Id,
@@ -32,7 +34,6 @@ public class LoginUserHandler : IRequestHandler<LoginUserCommand, AuthResponse>
                 user.MemberRank
             }
         };
-
     }
 
 }
