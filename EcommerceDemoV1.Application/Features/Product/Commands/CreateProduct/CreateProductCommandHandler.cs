@@ -2,10 +2,11 @@ using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
+using EcommerceDemoV1.Application.DTOs.Product;
 
 namespace EcommerceDemoV1.Application.Features.Product.Commands.CreateProduct;
 
-public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, int>
+public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand, ProductDtoRespone>
 {
     private readonly IProductRepository _productRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -16,9 +17,8 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<int> Handle(CreateProductCommand request, CancellationToken cancellationToken)
+    public async Task<ProductDtoRespone> Handle(CreateProductCommand request, CancellationToken cancellationToken)
     {
-        // Map từ Command sang Entity
         var product = new EcommerceDemoV1.Domain.Entities.Product
         {
             Name = request.Name,
@@ -28,8 +28,17 @@ public class CreateProductCommandHandler : IRequestHandler<CreateProductCommand,
             ImageUrl = request.ImageUrl
         };
 
-        var productId = await _productRepository.CreateAsync(product);
+        var Product = await _productRepository.CreateAsync(product);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return productId;
+        var ProductDto = new ProductDtoRespone
+        {
+            Id = Product.Id,
+            Name = Product.Name,
+            CategoryId = Product.CategoryId,
+            BasePrice = Product.BasePrice,
+            Description = Product.Description,
+            ImageUrl = Product.ImageUrl
+        };
+        return ProductDto;
     }
 }

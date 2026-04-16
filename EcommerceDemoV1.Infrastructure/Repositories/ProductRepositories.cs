@@ -5,15 +5,20 @@ public class ProductRepository : IProductRepository
 {
     private readonly AppDbContext _context;
 
+    public async Task<bool> ExistsAsync(int id)
+    {
+        return await _context.Products.AnyAsync(p => p.Id == id);
+    }
+
     public ProductRepository(AppDbContext context)
     {
         _context = context;
     }
 
-    public async Task<int> CreateAsync(Product product)
+    public async Task<Product> CreateAsync(Product product)
     {
         await _context.Products.AddAsync(product);
-        return product.Id;
+        return product;
     }
 
     public async Task<Product?> GetByIdAsync(int id)
@@ -21,9 +26,16 @@ public class ProductRepository : IProductRepository
         return await _context.Products.FindAsync(id);
     }
 
-    public async Task<IEnumerable<Product>> GetAllAsync()
+    public async Task<IEnumerable<Product>> GetAllAsyncByAdmin(int page,
+        int size)
     {
-        return await _context.Products.Where(p => !p.IsDeleted).ToListAsync();
+        return await _context.Products
+            .Include(p => p.Category)
+            .Include(p => p.Variants)
+            .IgnoreQueryFilters()
+            .Skip((page - 1) * size)
+            .Take(size)
+            .ToListAsync();
     }
 
 
@@ -35,9 +47,9 @@ public class ProductRepository : IProductRepository
         decimal? maxPrice)
     {
         var query = _context.Products
-                            .Include(p => p.Category)
-                            .Include(p => p.Variants)
-                            .Where(p => !p.IsDeleted);
+            .Include(p => p.Category)
+            .Include(p => p.Variants)
+            .Where(p => !p.IsDeleted);
 
         if (!string.IsNullOrWhiteSpace(category))
         {
@@ -84,7 +96,6 @@ public class ProductRepository : IProductRepository
     public async Task UpdateAsync(Product product)
     {
         var existingProduct = await _context.Products
-            .Include(p => p.Variants)
             .FirstOrDefaultAsync(p => p.Id == product.Id);
 
         if (existingProduct != null)
@@ -94,35 +105,6 @@ public class ProductRepository : IProductRepository
             existingProduct.BasePrice = product.BasePrice;
             existingProduct.Description = product.Description;
             existingProduct.ImageUrl = product.ImageUrl;
-
-            var updatedVariantIds = product.Variants.Select(v => v.Id).ToList();
-            var variantsToRemove = existingProduct.Variants
-                .Where(v => !updatedVariantIds.Contains(v.Id))
-                .ToList();
-
-            foreach (var variantToRemove in variantsToRemove)
-            {
-                variantToRemove.IsDeleted = true;
-            }
-
-            foreach (var incomingVariant in product.Variants)
-            {
-                var existingVariant = existingProduct.Variants.FirstOrDefault(v => v.Id == incomingVariant.Id && incomingVariant.Id != 0);
-
-                if (existingVariant != null)
-                {
-                    existingVariant.SKU = incomingVariant.SKU;
-                    existingVariant.Color = incomingVariant.Color;
-                    existingVariant.Size = incomingVariant.Size;
-                    existingVariant.Price = incomingVariant.Price;
-                    existingVariant.StockQuantity = incomingVariant.StockQuantity;
-                }
-                else
-                {
-                    existingProduct.Variants.Add(incomingVariant);
-                }
-            }
-
             _context.Products.Update(existingProduct);
         }
     }

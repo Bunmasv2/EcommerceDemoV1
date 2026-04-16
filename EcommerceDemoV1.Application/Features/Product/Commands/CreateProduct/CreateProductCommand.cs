@@ -9,4 +9,4 @@ public record CreateProductCommand(
     decimal BasePrice,
     string? Description,
     string? ImageUrl
-) : IRequest<int>;
+) : IRequest<ProductDtoRespone>;

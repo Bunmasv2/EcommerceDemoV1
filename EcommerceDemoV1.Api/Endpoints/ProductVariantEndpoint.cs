@@ -1,31 +1,33 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using EcommerceDemoV1.Application.Features.Product.Commands.CreateProduct;
-using EcommerceDemoV1.Application.Features.Product.Commands.UpdateProduct;
-using EcommerceDemoV1.Application.Features.Product.Commands.DeleteProduct;
-using EcommerceDemoV1.Application.Features.Product.Queries.GetProductById;
-using EcommerceDemoV1.Application.Features.Product.Queries.GetProduct;
+using EcommerceDemoV1.Application.Features.ProductVariant.Commands.UpdateProductVariant;
+using EcommerceDemoV1.Application.Features.ProductVariant.Commands.DeleteProductVariant;
+using EcommerceDemoV1.Application.Features.ProductVariant.Commands.CreateProductVariant;
+using EcommerceDemoV1.Application.Features.ProductVariant.Queries.GetProductVariant;
+using EcommerceDemoV1.Application.Features.ProductVariant.Queries.GetProductVariantById;
+
+
 
 namespace EcommerceDemoV1.WebAPI.Endpoints;
 
-public static class ProductEndpoints
+public static class ProductVariantEndpoints
 {
-    public static void MapProductEndpoints(this IEndpointRouteBuilder app)
+    public static void MapProductVariantEndpoints(this IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/v1/products").WithTags("Products");
+        var group = app.MapGroup("/api/v1/variants").WithTags("Variants");
 
         group.MapPost("/", async (
-            [FromBody] CreateProductCommand command,
+            [FromBody] CreateProductVariantCommand command,
             IMediator mediator) =>
         {
-            var Product = await mediator.Send(command);
-            return Results.Ok(new { success = true, Product, message = "Product created successfully" });
+            var variant = await mediator.Send(command);
+            return Results.Ok(new { success = true, variant, message = "Product variant created successfully" });
         })
         .RequireAuthorization("AdminOnly");
 
         group.MapPut("/{id:int}", async (
             int id,
-            [FromBody] UpdateProductCommand bodyCommand,
+            [FromBody] UpdateProductVariantCommand bodyCommand,
             IMediator mediator) =>
         {
             var command = bodyCommand with { Id = id };
@@ -35,7 +37,7 @@ public static class ProductEndpoints
             {
                 return Results.NotFound(new { success = false, message = result.ErrorMessage });
             }
-            return Results.Ok(new { success = true, result, message = "Product updated successfully" });
+            return Results.Ok(new { success = true, result, message = "Product variant updated successfully" });
         })
         .RequireAuthorization("AdminOnly");
 
@@ -43,12 +45,12 @@ public static class ProductEndpoints
             int id,
             IMediator mediator) =>
         {
-            var result = await mediator.Send(new DeleteProductCommand(id));
+            var result = await mediator.Send(new DeleteProductVariantCommand(id));
             if (!result.IsSuccess)
             {
                 return Results.NotFound(new { success = false, message = result.ErrorMessage });
             }
-            return Results.Ok(new { success = true, result, message = "Product deleted successfully" });
+            return Results.Ok(new { success = true, result, message = "Product variant deleted successfully" });
         })
         .RequireAuthorization("AdminOnly");
 
@@ -60,7 +62,7 @@ public static class ProductEndpoints
             decimal? maxPrice,
             IMediator mediator) =>
         {
-            var query = new GetProductsQuery(page ?? 1, size ?? 10, category, minPrice, maxPrice);
+            var query = new GetProductVariantQuery(page ?? 1, size ?? 10, category, minPrice, maxPrice);
             var products = await mediator.Send(query);
             return Results.Ok(products);
         });
@@ -70,7 +72,7 @@ public static class ProductEndpoints
             int? size,
             IMediator mediator) =>
         {
-            var query = new GetProductAdminQuery(page ?? 1, size ?? 10);
+            var query = new GetProductVariantAdminQuery(page ?? 1, size ?? 10);
             var products = await mediator.Send(query);
             return Results.Ok(products);
         })
@@ -83,12 +85,12 @@ public static class ProductEndpoints
         {
             try
             {
-                var product = await mediator.Send(new GetProductByIdQuery(id));
+                var product = await mediator.Send(new GetProductVariantByIdQuery(id));
                 return Results.Ok(product);
             }
             catch (KeyNotFoundException)
             {
-                return Results.NotFound(new { message = "Product not found" });
+                return Results.NotFound(new { message = "Product variant not found" });
             }
         });
     }

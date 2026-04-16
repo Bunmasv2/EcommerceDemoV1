@@ -1,9 +1,10 @@
 using MediatR;
+using EcommerceDemoV1.Application.DTOs.Product;
 
 
 namespace EcommerceDemoV1.Application.Features.Product.Commands.UpdateProduct;
 
-public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand, Unit>
+public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand, Result<ProductDtoRespone>>
 {
     private readonly IProductRepository _productRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -14,9 +15,8 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
         _unitOfWork = unitOfWork;
     }
 
-    public async Task<Unit> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
+    public async Task<Result<ProductDtoRespone>> Handle(UpdateProductCommand request, CancellationToken cancellationToken)
     {
-        // Map data để gửi xuống Repository xử lý logic update
         var productUpdate = new EcommerceDemoV1.Domain.Entities.Product
         {
             Id = request.Id,
@@ -25,19 +25,24 @@ public class UpdateProductCommandHandler : IRequestHandler<UpdateProductCommand,
             BasePrice = request.BasePrice,
             Description = request.Description,
             ImageUrl = request.ImageUrl
-            // Variants = request.Variants.Select(v => new EcommerceDemoV1.Domain.Entities.ProductVariant
-            // {
-            //     Id = v.Id, // Quan trọng: Phải truyền Id để Repo biết là Cập nhật hay Thêm mới
-            //     SKU = v.SKU,
-            //     Color = v.Color,
-            //     Size = v.Size,
-            //     Price = v.Price,
-            //     StockQuantity = v.StockQuantity
-            // }).ToList()
         };
+
+        var product = await _productRepository.ExistsAsync(request.Id);
+        if (!product)
+        {
+            return Result<ProductDtoRespone>.Failure($"Không tìm thấy product với ID {request.Id}");
+        }
 
         await _productRepository.UpdateAsync(productUpdate);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
-        return Unit.Value;
+        return Result<ProductDtoRespone>.Success(new ProductDtoRespone
+        {
+            Id = productUpdate.Id,
+            Name = productUpdate.Name,
+            CategoryId = productUpdate.CategoryId,
+            BasePrice = productUpdate.BasePrice,
+            Description = productUpdate.Description,
+            ImageUrl = productUpdate.ImageUrl
+        });
     }
 }

@@ -9,4 +9,4 @@ public record UpdateProductCommand(
     string? Description,
     string? ImageUrl
 // List<ProductVariantDto> Variants
-) : IRequest<Unit>; // Dùng Unit thay cho void trong MediatR
+) : IRequest<Result<ProductDtoRespone>>;
