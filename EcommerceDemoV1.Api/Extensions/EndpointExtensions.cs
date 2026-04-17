@@ -10,6 +10,9 @@ public static class EndpointExtensions
         app.MapProductEndpoints();
         app.MapProductVariantEndpoints();
         app.MapCartEndpoints();
+        app.MapCouponEndpoints();
+        app.MapPromotionRuleEndpoints();
+        app.MapOrderEndpoints();
         // app.MapOrderEndpoints();
     }
 }

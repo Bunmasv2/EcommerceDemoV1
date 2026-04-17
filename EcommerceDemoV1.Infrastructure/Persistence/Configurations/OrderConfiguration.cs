@@ -14,18 +14,29 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.DiscountAmount)
             .HasColumnType("decimal(18,2)");
 
+        builder.Property(o => o.PromotionDiscount)
+            .HasColumnType("decimal(18,2)");
+
+        builder.Property(o => o.RankDiscount)
+            .HasColumnType("decimal(18,2)");
+
+        builder.Property(o => o.CouponDiscount)
+        .HasColumnType("decimal(18,2)");
+
         builder.Property(o => o.ShippingFee)
             .HasColumnType("decimal(18,2)");
 
-        builder.Property(o => o.Total)
+        builder.Property(o => o.FinalTotal)
             .HasColumnType("decimal(18,2)");
 
         builder.Property(o => o.Status)
             .IsRequired()
+            .HasConversion<string>()
             .HasMaxLength(30);
 
         builder.Property(o => o.PaymentStatus)
             .IsRequired()
+            .HasConversion<string>()
             .HasMaxLength(30);
 
         builder.Property(o => o.ShippingAddress)
@@ -37,6 +48,9 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
 
         builder.Property(o => o.PayOsOrderId)
             .HasMaxLength(100);
+
+        builder.Property(o => o.CouponCode)
+            .HasMaxLength(50);
 
         builder.HasOne(o => o.User)
             .WithMany(u => u.Orders)

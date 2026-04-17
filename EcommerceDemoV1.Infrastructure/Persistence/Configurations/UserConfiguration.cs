@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using EcommerceDemoV1.Domain.Entities;
+using EcommerceDemoV1.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+
 
 public class UserConfiguration : IEntityTypeConfiguration<User>
 {
@@ -33,6 +35,8 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .HasMaxLength(20);
 
         builder.Property(u => u.MemberRank)
+            .HasConversion<string>()
+            .HasDefaultValue(MemberRank.Bronze)
             .IsRequired()
             .HasMaxLength(20);
 

@@ -1,6 +1,8 @@
 using MediatR;
 using EcommerceDemoV1.Application.Features.Cart.Command.AddToCart;
 using EcommerceDemoV1.Application.Features.Cart.Queries.GetCart;
+using EcommerceDemoV1.Application.Features.Cart.Commands.ApplyCoupon;
+
 using FluentValidation;
 
 namespace EcommerceDemoV1.Api.Endpoints;
@@ -14,7 +16,7 @@ public static class CartEndpoint
         group.MapPost("/", async (
             AddToCartCommand command,
             IMediator mediator,
-            AddToCartCommandValidator validator) =>
+            IValidator<AddToCartCommand> validator) =>
         {
             var validationResult = await validator.ValidateAsync(command);
             if (!validationResult.IsValid)
@@ -31,6 +33,25 @@ public static class CartEndpoint
         {
             var result = await mediator.Send(new GetCartQuery());
             return Results.Ok(result);
+        }).RequireAuthorization();
+
+        group.MapPost("/apply-coupon", async (
+            ApplyCouponCommand command,
+            IMediator mediator,
+            IValidator<ApplyCouponCommand> validator) =>
+        {
+            var validationResult = await validator.ValidateAsync(command);
+            if (!validationResult.IsValid)
+            {
+                return Results.BadRequest(validationResult.ToDictionary());
+            }
+
+            var result = await mediator.Send(command);
+            if (!result.IsSuccess)
+            {
+                return Results.BadRequest(new { success = false, message = result.ErrorMessage });
+            }
+            return Results.Ok(new { success = true, result, message = "Coupon applied successfully" });
         }).RequireAuthorization();
     }
 }

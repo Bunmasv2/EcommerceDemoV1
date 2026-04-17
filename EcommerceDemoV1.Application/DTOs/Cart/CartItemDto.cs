@@ -8,7 +8,23 @@ public class CartDto
     public string UserId { get; set; } = null!;
     public List<CartItemDto> Items { get; set; } = new();
 
-    public decimal TotalPrice => Items.Sum(i => i.Quantity * i.ProductVariant.Price);
+    public string MemberRank { get; set; } = string.Empty; // Hiển thị "Gold", "Silver"...
+    public decimal RankDiscountRate { get; set; } // Ví cập: 0.05 (5%)
+
+    // Tổng tiền gốc
+    public decimal SubTotal => Items.Sum(i => i.Quantity * i.ProductVariant.Price);
+
+    // Số tiền giảm giá theo hạng thành viên
+    public decimal RankDiscountAmount => SubTotal * RankDiscountRate;
+
+    // Tổng tiền sau khi đã trừ ưu đãi hạng (Dùng để Checkout)
+    public decimal TotalAfterRankDiscount => SubTotal - RankDiscountAmount;
+
+    // If use Coupon (Task 5.2)
+    public string? AppliedCouponCode { get; set; }
+    public decimal CouponDiscountAmount { get; set; }
+
+    public decimal FinalTotalPrice => TotalAfterRankDiscount - CouponDiscountAmount;
 }
 
 public class CartItemDto

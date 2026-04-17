@@ -37,7 +37,7 @@ public static class ProductVariantEndpoints
             int id,
             [FromBody] UpdateProductVariantCommand bodyCommand,
             IMediator mediator,
-            UpdateProductVariantCommandValidator validator) =>
+            IValidator<UpdateProductVariantCommand> validator) =>
         {
             var command = bodyCommand with { Id = id };
 
@@ -59,7 +59,7 @@ public static class ProductVariantEndpoints
         group.MapDelete("/{id:int}", async (
             int id,
             IMediator mediator,
-            DeleteProductVariantCommandValidator validator) =>
+            IValidator<DeleteProductVariantCommand> validator) =>
         {
             var command = new DeleteProductVariantCommand(id);
             var validationResult = await validator.ValidateAsync(command);

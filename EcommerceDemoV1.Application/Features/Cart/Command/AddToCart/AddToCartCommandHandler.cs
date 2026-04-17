@@ -57,7 +57,8 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
             {
                 CartId = cart.Id,
                 ProductVariantId = request.ProductVariantId,
-                Quantity = request.Quantity
+                Quantity = request.Quantity,
+                UnitPrice = productVariant.Price
             };
 
             await _cartRepository.AddCartItemAsync(cartItem);

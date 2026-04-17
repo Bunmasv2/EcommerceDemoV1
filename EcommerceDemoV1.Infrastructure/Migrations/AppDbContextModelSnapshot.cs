@@ -33,6 +33,9 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
+                    b.Property<int?>("AppliedCouponId")
+                        .HasColumnType("int");
+
                     b.Property<decimal>("AppliedDiscount")
                         .HasColumnType("decimal(18,2)");
 
@@ -40,6 +43,8 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AppliedCouponId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -153,6 +158,13 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("CouponCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("CouponDiscount")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<int?>("CouponId")
                         .HasColumnType("int");
 
@@ -160,6 +172,9 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("FinalTotal")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("PayOsOrderId")
@@ -170,6 +185,12 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
+
+                    b.Property<decimal>("PromotionDiscount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("RankDiscount")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ShippingAddress")
                         .IsRequired()
@@ -185,9 +206,6 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                         .HasColumnType("nvarchar(30)");
 
                     b.Property<decimal>("SubTotal")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<decimal>("Total")
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("TrackingCode")
@@ -256,6 +274,10 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
 
                     b.Property<DateTime?>("PaidAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("PayOsOrderId")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("PayOsTransactionId")
                         .HasMaxLength(100)
@@ -364,19 +386,35 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<string>("ActionJson")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<int?>("ApplyToCategoryId")
+                        .HasColumnType("int");
 
-                    b.Property<string>("ConditionJson")
+                    b.Property<int?>("ApplyToProductVariantId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal>("DiscountPercentage")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("datetime2");
 
+                    b.Property<int>("FreeQuantity")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("GiftProductVariantId")
+                        .HasColumnType("int");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<int>("MinQuantity")
+                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -386,15 +424,21 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                     b.Property<int>("Priority")
                         .HasColumnType("int");
 
-                    b.Property<string>("RuleType")
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Type")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<DateTime>("StartDate")
-                        .HasColumnType("datetime2");
-
                     b.HasKey("Id");
+
+                    b.HasIndex("ApplyToCategoryId");
+
+                    b.HasIndex("ApplyToProductVariantId");
+
+                    b.HasIndex("GiftProductVariantId");
 
                     b.ToTable("PromotionRules");
                 });
@@ -505,8 +549,10 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
 
                     b.Property<string>("MemberRank")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Bronze");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -532,11 +578,17 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
 
             modelBuilder.Entity("EcommerceDemoV1.Domain.Entities.Cart", b =>
                 {
+                    b.HasOne("EcommerceDemoV1.Domain.Entities.Coupon", "AppliedCoupon")
+                        .WithMany()
+                        .HasForeignKey("AppliedCouponId");
+
                     b.HasOne("EcommerceDemoV1.Domain.Entities.User", "User")
                         .WithOne("Cart")
                         .HasForeignKey("EcommerceDemoV1.Domain.Entities.Cart", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("AppliedCoupon");
 
                     b.Navigation("User");
                 });
@@ -628,6 +680,30 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("EcommerceDemoV1.Domain.Entities.PromotionRule", b =>
+                {
+                    b.HasOne("EcommerceDemoV1.Domain.Entities.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("ApplyToCategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EcommerceDemoV1.Domain.Entities.ProductVariant", "ProductVariant")
+                        .WithMany()
+                        .HasForeignKey("ApplyToProductVariantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EcommerceDemoV1.Domain.Entities.ProductVariant", "GiftProductVariant")
+                        .WithMany()
+                        .HasForeignKey("GiftProductVariantId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.Navigation("Category");
+
+                    b.Navigation("GiftProductVariant");
+
+                    b.Navigation("ProductVariant");
                 });
 
             modelBuilder.Entity("EcommerceDemoV1.Domain.Entities.Review", b =>

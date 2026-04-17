@@ -12,16 +12,30 @@ public class PromotionRuleConfiguration : IEntityTypeConfiguration<PromotionRule
             .IsRequired()
             .HasMaxLength(200);
 
-        builder.Property(pr => pr.RuleType)
+        builder.Property(pr => pr.Description)
+            .HasMaxLength(500);
+
+        builder.Property(pr => pr.Type)
             .IsRequired()
+            .HasConversion<string>()
             .HasMaxLength(50);
 
-        builder.Property(pr => pr.ConditionJson)
-            .IsRequired()
-            .HasColumnType("nvarchar(max)");
+        builder.Property(pr => pr.DiscountPercentage)
+            .HasPrecision(5, 2);
 
-        builder.Property(pr => pr.ActionJson)
-            .IsRequired()
-            .HasColumnType("nvarchar(max)");
+        builder.HasOne(pr => pr.Category)
+            .WithMany()
+            .HasForeignKey(pr => pr.ApplyToCategoryId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(pr => pr.ProductVariant)
+            .WithMany()
+            .HasForeignKey(pr => pr.ApplyToProductVariantId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.HasOne(pr => pr.GiftProductVariant)
+            .WithMany()
+            .HasForeignKey(pr => pr.GiftProductVariantId)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 }

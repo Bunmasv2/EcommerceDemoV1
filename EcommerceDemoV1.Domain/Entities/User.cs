@@ -1,3 +1,5 @@
+using EcommerceDemoV1.Domain.Enums;
+
 namespace EcommerceDemoV1.Domain.Entities;
 
 public class User
@@ -10,7 +12,7 @@ public class User
     public string? Address { get; set; }
     public string Role { get; set; } = "User"; // "User" | "Admin"
     public int LoyaltyPoints { get; set; } = 0;
-    public string MemberRank { get; set; } = "Bronze"; // Bronze | Silver | Gold | Diamond
+    public MemberRank MemberRank { get; set; } = MemberRank.Bronze; // Bronze | Silver | Gold | Diamond
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

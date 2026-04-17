@@ -4,7 +4,7 @@ public class Coupon
 {
     public int Id { get; set; }
     public string Code { get; set; } = null!; // unique
-    public string DiscountType { get; set; } = null!; // "PERCENTAGE" | "FIXED_AMOUNT"
+    public string DiscountType { get; set; } = "PERCENTAGE"; // "PERCENTAGE" | "FIXED_AMOUNT"
     public decimal Value { get; set; }
     public decimal MinOrderValue { get; set; }
     public int UsageLimit { get; set; }

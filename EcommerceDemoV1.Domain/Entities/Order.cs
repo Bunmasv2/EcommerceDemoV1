@@ -1,3 +1,5 @@
+using EcommerceDemoV1.Domain.Enums;
+
 namespace EcommerceDemoV1.Domain.Entities;
 
 public class Order
@@ -5,14 +7,19 @@ public class Order
     public int Id { get; set; }
     public int UserId { get; set; }
     public int? CouponId { get; set; }
+    public string? CouponCode { get; set; }
+
     public decimal SubTotal { get; set; }
     public decimal DiscountAmount { get; set; }
+    public decimal PromotionDiscount { get; set; } // Khuyến mãi (Task 8)
+    public decimal RankDiscount { get; set; }      // Chiết khấu hạng (Task 5.3)
+    public decimal CouponDiscount { get; set; }
     public decimal ShippingFee { get; set; }
-    public decimal Total { get; set; }
-    public string Status { get; set; } = "PENDING";
-    // PENDING | CONFIRMED | SHIPPING | COMPLETED | CANCELLED
-    public string PaymentStatus { get; set; } = "PENDING_PAYMENT";
-    // PENDING_PAYMENT | PAID | FAILED
+    public decimal FinalTotal { get; set; }
+
+    public OrderStatus Status { get; set; } = OrderStatus.Pending;
+    public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
+
     public string ShippingAddress { get; set; } = null!;
     public string? TrackingCode { get; set; }
     public string? PayOsOrderId { get; set; }

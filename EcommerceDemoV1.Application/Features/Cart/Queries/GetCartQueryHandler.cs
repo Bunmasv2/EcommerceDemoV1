@@ -1,17 +1,20 @@
 using EcommerceDemoV1.Application.DTOs.Cart;
 using MediatR;
 using EcommerceDemoV1.Application.DTOs.Product;
+using EcommerceDemoV1.Domain.Services;
 
 namespace EcommerceDemoV1.Application.Features.Cart.Queries.GetCart;
 
 public class GetCartQueryHandler : IRequestHandler<GetCartQuery, CartDto>
 {
     private readonly ICartRepository _cartRepository;
+    private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
 
-    public GetCartQueryHandler(ICartRepository cartRepository, ICurrentUserService currentUserService)
+    public GetCartQueryHandler(ICartRepository cartRepository, IUserRepository userRepository, ICurrentUserService currentUserService)
     {
         _cartRepository = cartRepository;
+        _userRepository = userRepository;
         _currentUserService = currentUserService;
     }
 
@@ -21,12 +24,16 @@ public class GetCartQueryHandler : IRequestHandler<GetCartQuery, CartDto>
         if (string.IsNullOrEmpty(userId)) throw new UnauthorizedAccessException();
 
         var cart = await _cartRepository.GetCartByUserIdAsync(int.Parse(userId));
+        var user = await _userRepository.GetByIdAsync(int.Parse(userId));
 
-        if (cart == null) return new CartDto();
+        if (cart == null || user == null) return new CartDto();
 
         return new CartDto
         {
             Id = cart.Id,
+            UserId = cart.UserId.ToString(),
+            MemberRank = user.MemberRank.ToString(),
+            RankDiscountRate = RankService.GetDiscountRate(user.MemberRank),
             Items = cart.Items.Select(i => new CartItemDto
             {
                 Id = i.Id,

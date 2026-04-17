@@ -7,8 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using EcommerceDemoV1.Application;
 using EcommerceDemoV1.Infrastructure;
 using EcommerceDemoV1.Api.Extensions;
-
-using EcommerceDemoV1.Infrastructure;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
 
