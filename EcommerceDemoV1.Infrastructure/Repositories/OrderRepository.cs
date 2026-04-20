@@ -1,4 +1,5 @@
 using EcommerceDemoV1.Domain.Entities;
+using EcommerceDemoV1.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 public class OrderRepository : IOrderRepository
@@ -32,5 +33,52 @@ public class OrderRepository : IOrderRepository
     {
         await _context.Orders.AddAsync(order);
         return order;
+    }
+
+    public async Task<(IReadOnlyList<Order> Items, int TotalCount)> GetPagedAsync(int userId, int page, int size, string? search = null)
+    {
+        var query = _context.Orders
+            .Where(o => o.UserId == userId)
+            .Include(o => o.Items)
+            .Include(o => o.Payments)
+            .AsNoTracking()
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(search))
+        {
+            bool isStatusSearch = Enum.TryParse<OrderStatus>(search, true, out var searchStatus);
+
+            query = query.Where(o =>
+                o.Id.ToString().Contains(search) ||
+                (isStatusSearch && o.Status == searchStatus));
+        }
+
+        var totalCount = await query.CountAsync();
+        var items = await query
+            .OrderByDescending(o => o.CreatedAt)
+            .Skip((page - 1) * size)
+            .Take(size)
+            .ToListAsync();
+
+        return (items, totalCount);
+    }
+
+    public async Task<List<Order>> GetExpiredPendingOrdersAsync(DateTime expiredTime)
+    {
+        return await _context.Orders
+            .Include(o => o.Items)
+            .Where(o => o.Status == OrderStatus.Pending && o.PaymentStatus == PaymentStatus.Pending && o.CreatedAt < expiredTime)
+            .ToListAsync();
+    }
+
+    public async Task<List<Order>> GetOrderCompletedAsync(int userId, int productId)
+    {
+        return await _context.Orders
+            .Where(o => o.UserId == userId && o.Status == OrderStatus.Completed && o.Items.Any(i => i.ProductVariant.ProductId == productId))
+            .Include(o => o.Items)
+                .ThenInclude(i => i.ProductVariant)
+            .OrderByDescending(o => o.CreatedAt)
+            .AsNoTracking()
+            .ToListAsync();
     }
 }
