@@ -47,29 +47,39 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
 
             var user = await _userRepository.GetByIdAsync(userId);
 
-            // 1. CHẠY BỘ MÁY KHUYẾN MÃI TRƯỚC (Để biết có được tặng quà gì không)
+            // 1. Chạy Promotion Engine
             var activePromotionRules = await _promotionRuleRepository.GetActivePromotionRulesAsync(DateTime.UtcNow);
             var engine = new PromotionEngine();
             var promotionResult = engine.ApplyBestRule(cart.Items, activePromotionRules);
 
-            // 2. GOM TẤT CẢ HÀNG CẦN XUẤT KHO (Hàng mua + Quà tặng) vào Dictionary
+            // 2. GOM TOÀN BỘ ID SẢN PHẨM (Hàng mua + Quà tặng) ĐỂ QUERY 1 LẦN DUY NHẤT
+            var variantIdsToFetch = cart.Items.Select(i => i.ProductVariantId)
+                .Union(promotionResult.Gifts.Select(g => g.ProductVariantId))
+                .Distinct()
+                .ToList();
+
+            var variantsFromDb = await _productVariantRepository.GetListByIdsAsync(variantIdsToFetch);
+
+            // Chuyển thành Dictionary để tra cứu trong RAM
+            var variantDict = variantsFromDb.ToDictionary(v => v.Id);
+
             var inventoryToDeduct = new Dictionary<int, int>();
             decimal subTotal = 0;
 
-            // 2.1. Quét hàng khách mua
+            // 3. TÍNH TIỀN & GOM LƯỢNG TỒN KHO CẦN TRỪ
             foreach (var item in cart.Items)
             {
+                if (!variantDict.TryGetValue(item.ProductVariantId, out var productVariant))
+                    return Result<CheckoutResultDto>.Failure($"Product variant with ID {item.ProductVariantId} not found in DB.");
+
                 if (inventoryToDeduct.ContainsKey(item.ProductVariantId))
                     inventoryToDeduct[item.ProductVariantId] += item.Quantity;
                 else
                     inventoryToDeduct.Add(item.ProductVariantId, item.Quantity);
 
-                // Lấy giá chuẩn từ ProductVariant (Nên lấy từ DB thay vì Cart để tránh lệch giá khi có biến động)
-                var productVariant = await _productVariantRepository.GetByIdAsync(item.ProductVariantId);
-                subTotal += productVariant!.Price * item.Quantity;
+                subTotal += productVariant.Price * item.Quantity;
             }
 
-            // 2.2. Quét quà khách được tặng
             foreach (var gift in promotionResult.Gifts)
             {
                 if (inventoryToDeduct.ContainsKey(gift.ProductVariantId))
@@ -78,24 +88,21 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
                     inventoryToDeduct.Add(gift.ProductVariantId, gift.Quantity);
             }
 
-            // 3. KIỂM TRA VÀ TRỪ TỒN KHO LẦN CUỐI (Khóa dòng - RepeatableRead)
+            // 4. KIỂM TRA VÀ TRỪ TỒN KHO LẦN CUỐI
             foreach (var kvp in inventoryToDeduct)
             {
                 var variantId = kvp.Key;
                 var totalQuantityNeeded = kvp.Value;
 
-                var productVariant = await _productVariantRepository.GetByIdAsync(variantId);
-                if (productVariant == null)
-                    return Result<CheckoutResultDto>.Failure($"Product variant with ID {variantId} not found.");
+                var productVariant = variantDict[variantId];
 
                 if (productVariant.StockQuantity < totalQuantityNeeded)
                     return Result<CheckoutResultDto>.Failure($"Not enough stock for product variant {productVariant.Id}. Need: {totalQuantityNeeded}, Have: {productVariant.StockQuantity}");
 
-                // Trừ kho
                 productVariant.StockQuantity -= totalQuantityNeeded;
             }
 
-            // 4. TÍNH TOÁN GIÁ TRỊ (Coupon, Rank)
+            // 5. TÍNH TOÁN GIÁ TRỊ TỔNG (Coupon, Rank)
             decimal totalAfterPromotion = subTotal - promotionResult.TotalDiscount;
             decimal rankDiscountRate = RankService.GetDiscountRate(user.MemberRank);
             decimal rankDiscountAmount = totalAfterPromotion * rankDiscountRate;
@@ -103,7 +110,7 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
 
             decimal couponDiscountAmount = 0;
             Coupon? appliedCoupon = null;
-            // Apply coupon if provided
+
             if (!string.IsNullOrWhiteSpace(request.CouponCode))
             {
                 appliedCoupon = await _couponRepository.GetValidCouponByCodeAsync(request.CouponCode, DateTime.UtcNow);
@@ -113,36 +120,27 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
                 if (totalAfterRank < appliedCoupon.MinOrderValue)
                     return Result<CheckoutResultDto>.Failure($"Order total must be at least {appliedCoupon.MinOrderValue} to use this coupon.");
 
-                appliedCoupon = appliedCoupon;
-                if (appliedCoupon.DiscountType == "PERCENTAGE")
-                {
-                    couponDiscountAmount = totalAfterRank * (appliedCoupon.Value / 100);
-                }
-                else if (appliedCoupon.DiscountType == "FIXED_AMOUNT")
-                {
-                    couponDiscountAmount = appliedCoupon.Value;
-                }
-
                 appliedCoupon.UsageLimit -= 1;
+                couponDiscountAmount = appliedCoupon.DiscountType == "PERCENTAGE"
+                    ? totalAfterRank * (appliedCoupon.Value / 100)
+                    : appliedCoupon.Value;
             }
 
             decimal finalTotal = totalAfterRank - couponDiscountAmount;
 
+            // 6. TẠO ORDER ITEMS
             var orderItems = new List<OrderItem>();
 
-            // Hàng mua
             foreach (var item in cart.Items)
             {
-                var variant = await _productVariantRepository.GetByIdAsync(item.ProductVariantId);
                 orderItems.Add(new OrderItem
                 {
                     ProductVariantId = item.ProductVariantId,
                     Quantity = item.Quantity,
-                    UnitPrice = variant!.Price
+                    UnitPrice = variantDict[item.ProductVariantId].Price
                 });
             }
 
-            // Quà tặng
             foreach (var gift in promotionResult.Gifts)
             {
                 orderItems.Add(new OrderItem
@@ -153,7 +151,7 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
                 });
             }
 
-            // Create order
+            // 7. LƯU ĐƠN HÀNG
             var order = new Order
             {
                 UserId = userId,
@@ -171,34 +169,17 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
 
             await _orderRepository.CreateOrderAsync(order);
 
+            await _cartRepository.DeleteCartAsync(cart.Id);
+
+            // SAVE Order mới, update Tồn kho, update Lượt Coupon, Xóa Cart
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            string? paymentUrl = null;
-            string returnMessage = "Order created successfully.";
-            if (request.PaymentMethod == PaymentMethod.PayOS)
-            {
-                var payment = new Payment
-                {
-                    OrderId = order.Id,
-                    Amount = finalTotal,
-                    Method = PaymentMethod.PayOS,
-                    Status = PaymentStatus.Pending
-                };
-
-                paymentUrl = await _payOsService.CreatePaymentAsync(order, payment);
-
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                returnMessage = "Please complete the payment.";
-            }
-
-            _cartRepository.DeleteCartAsync(cart.Id);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
             return Result<CheckoutResultDto>.Success(new CheckoutResultDto
             {
                 OrderId = order.Id,
-                Message = returnMessage,
-                PaymentUrl = paymentUrl
+                Message = "Order created successfully."
             });
         }
         catch

@@ -13,6 +13,7 @@ public static class EndpointExtensions
         app.MapCouponEndpoints();
         app.MapPromotionRuleEndpoints();
         app.MapOrderEndpoints();
-        // app.MapOrderEndpoints();
+        app.MapPaymentEndpoints();
+        app.MapReviewEndpoints();
     }
 }

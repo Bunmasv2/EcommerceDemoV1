@@ -35,4 +35,12 @@ public class UserRepository : IUserRepository
     {
         _context.Users.Update(user);
     }
+
+    public async Task<string?> GetUserNameByIdAsync(int id)
+    {
+        return await _context.Users
+            .Where(u => u.Id == id)
+            .Select(u => u.FullName)
+            .FirstOrDefaultAsync();
+    }
 }

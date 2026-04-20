@@ -6,6 +6,7 @@ public interface IProductVariantRepository
 {
     Task<bool> ExistsAsync(int id);
     Task<ProductVariant?> GetByIdAsync(int id);
+    Task<List<ProductVariant>> GetListByIdsAsync(IEnumerable<int> ids);
     Task<IEnumerable<ProductVariant>> GetAllAsyncByAdmin(int page, int size);
     Task<(IReadOnlyList<ProductVariant> Items, int TotalCount)> GetPagedAsync(
         int page,

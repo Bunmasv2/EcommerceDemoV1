@@ -10,12 +10,18 @@ using EcommerceDemoV1.Api.Extensions;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
 
+
 Env.Load();
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddEnvironmentVariables();
+
+builder.Services.AddAutoMapper(typeof(AutoMapperConfig).Assembly);
 
 // Add layers
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+// Đăng ký Background Job dọn dẹp đơn hàng
+builder.Services.AddHostedService<EcommerceDemoV1.Infrastructure.BackgroundJobs.OrderCleanupService>();
 
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"]

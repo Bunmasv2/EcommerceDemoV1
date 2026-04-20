@@ -32,6 +32,13 @@ public class ProductVariantRepository : IProductVariantRepository
         return await _context.ProductVariants.FindAsync(id);
     }
 
+    public async Task<List<ProductVariant>> GetListByIdsAsync(IEnumerable<int> ids)
+    {
+        return await _context.ProductVariants
+            .Where(v => ids.Contains(v.Id))
+            .ToListAsync();
+    }
+
     public async Task<IEnumerable<ProductVariant>> GetAllAsyncByAdmin(int page, int size)
     {
         return await _context.ProductVariants
