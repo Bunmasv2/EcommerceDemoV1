@@ -20,6 +20,7 @@ builder.Services.AddAutoMapper(typeof(AutoMapperConfig).Assembly);
 // Add layers
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
 // Đăng ký Background Job dọn dẹp đơn hàng
 builder.Services.AddHostedService<EcommerceDemoV1.Infrastructure.BackgroundJobs.OrderCleanupService>();
 
@@ -47,7 +48,22 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = builder.Configuration["Jwt:Audience"],
         IssuerSigningKey = new SymmetricSecurityKey(key)
     };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            // Kiểm tra xem trong Request có Cookie nào tên là "AccessToken" không
+            if (context.Request.Cookies.ContainsKey("AccessToken"))
+            {
+                // Nếu có, gán nó vào ngữ cảnh để hệ thống tự động xác thực
+                context.Token = context.Request.Cookies["AccessToken"];
+            }
+            return Task.CompletedTask;
+        }
+    };
 });
+
 
 builder.Services.AddAuthorization(option =>
 {

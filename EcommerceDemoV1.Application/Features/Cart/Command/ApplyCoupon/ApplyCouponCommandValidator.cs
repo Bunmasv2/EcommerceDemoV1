@@ -6,7 +6,7 @@ public class ApplyCouponCommandValidator : AbstractValidator<ApplyCouponCommand>
 {
     public ApplyCouponCommandValidator()
     {
-        RuleFor(x => x.CouponCode)
+        RuleFor(x => x.couponCode)
             .NotEmpty().WithMessage("Coupon code is required.");
     }
 }

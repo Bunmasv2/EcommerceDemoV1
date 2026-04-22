@@ -49,7 +49,7 @@ public class AddToCartCommandHandler : IRequestHandler<AddToCartCommand, Result<
                 return Result<CartItemDto>.Failure("Total quantity in cart exceeds stock.");
             existingItem.Quantity += request.Quantity;
             cartItem = existingItem;
-            await _cartRepository.UpdateCartItem(existingItem);
+            // await _cartRepository.UpdateCartItem(existingItem);
         }
         else
         {

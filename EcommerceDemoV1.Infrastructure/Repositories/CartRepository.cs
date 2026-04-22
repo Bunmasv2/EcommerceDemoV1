@@ -19,6 +19,8 @@ public class CartRepository : ICartRepository
         return await _context.Carts
             .Include(c => c.Items)
                 .ThenInclude(ci => ci.ProductVariant)
+                    .ThenInclude(v => v.Product)
+            .AsNoTracking()
             .FirstOrDefaultAsync(c => c.UserId == userId);
     }
     public async Task<Cart> CreateCartAsync(Cart cart)

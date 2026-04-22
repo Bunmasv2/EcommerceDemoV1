@@ -29,7 +29,7 @@ public class AppllyCouponCommandHandler : IRequestHandler<ApplyCouponCommand, Re
 
         decimal currentTotal = cart.Items.Sum(item => item.ProductVariant.Price * item.Quantity);
 
-        var coupon = await _couponRepository.GetByCodeAsync(request.CouponCode.ToUpper());
+        var coupon = await _couponRepository.GetByCodeAsync(request.couponCode.ToUpper());
         if (coupon == null)
             return Result<CouponCalculationDto>.Failure("Invalid coupon code or coupon is blocked.");
 
@@ -57,7 +57,7 @@ public class AppllyCouponCommandHandler : IRequestHandler<ApplyCouponCommand, Re
 
         cart.AppliedCouponCode = coupon.Code;
         cart.AppliedDiscount = discountAmount;
-        await _cartRepository.UpdateCartAsync(cart);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result<CouponCalculationDto>.Success(new CouponCalculationDto(

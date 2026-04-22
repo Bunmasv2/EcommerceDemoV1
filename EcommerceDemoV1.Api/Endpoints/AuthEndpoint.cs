@@ -28,7 +28,8 @@ public static class AuthEndpoints
         group.MapPost("/login", async (
             LoginUserCommand command,
             IMediator mediator,
-            IValidator<LoginUserCommand> validator
+            IValidator<LoginUserCommand> validator,
+            HttpContext context
             ) =>
         {
             var validationResult = await validator.ValidateAsync(command);
@@ -39,7 +40,18 @@ public static class AuthEndpoints
             }
 
             var authResponse = await mediator.Send(command);
-            return Results.Ok(authResponse);
+
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddMinutes(180)
+            };
+
+            context.Response.Cookies.Append("AccessToken", authResponse.AccessToken, cookieOptions);
+
+            return Results.Ok(new { Message = "Login successful", User = authResponse.infoUser });
         }).WithTags("Auth");
     }
 }
