@@ -34,9 +34,7 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
 
     public async Task<Result<CheckoutResultDto>> Handle(CheckoutCommand request, CancellationToken cancellationToken)
     {
-        var userId = int.Parse(_CurrentUserService.UserId);
-        if (string.IsNullOrEmpty(userId.ToString()))
-            return Result<CheckoutResultDto>.Failure("User is not authenticated.");
+        var userId = int.Parse(_CurrentUserService.UserId ?? throw new UnauthorizedAccessException("User is not authenticated."));
 
         await _unitOfWork.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, cancellationToken);
         try
@@ -104,9 +102,12 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
 
             // 5. TÍNH TOÁN GIÁ TRỊ TỔNG (Coupon, Rank)
             decimal totalAfterPromotion = subTotal - promotionResult.TotalDiscount;
+            if (totalAfterPromotion < 0) totalAfterPromotion = 0;
+
             decimal rankDiscountRate = RankService.GetDiscountRate(user.MemberRank);
             decimal rankDiscountAmount = totalAfterPromotion * rankDiscountRate;
             decimal totalAfterRank = totalAfterPromotion - rankDiscountAmount;
+            if (totalAfterRank < 0) totalAfterRank = 0;
 
             decimal couponDiscountAmount = 0;
             Coupon? appliedCoupon = null;
@@ -127,6 +128,7 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
             }
 
             decimal finalTotal = totalAfterRank - couponDiscountAmount;
+            if (finalTotal < 0) finalTotal = 0;
 
             // 6. TẠO ORDER ITEMS
             var orderItems = new List<OrderItem>();
@@ -151,13 +153,16 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
                 });
             }
 
+            var initialOrderStatus = finalTotal == 0 ? OrderStatus.Processing : OrderStatus.Pending;
+            var initialPaymentStatus = finalTotal == 0 ? PaymentStatus.Paid : PaymentStatus.Pending;
+
             // 7. LƯU ĐƠN HÀNG
             var order = new Order
             {
                 UserId = userId,
                 ShippingAddress = request.ShippingAddress,
-                Status = OrderStatus.Pending,
-                PaymentStatus = PaymentStatus.Pending,
+                Status = initialOrderStatus,
+                PaymentStatus = initialPaymentStatus,
                 SubTotal = subTotal,
                 PromotionDiscount = promotionResult.TotalDiscount,
                 RankDiscount = rankDiscountAmount,
@@ -167,6 +172,15 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
                 Items = orderItems
             };
 
+            var payment = new EcommerceDemoV1.Domain.Entities.Payment
+            {
+                Amount = finalTotal,
+                Method = finalTotal == 0 ? PaymentMethod.COD : request.PaymentMethod,
+                Status = PaymentStatus.Pending
+            };
+
+            order.Payments.Add(payment);
+
             await _orderRepository.CreateOrderAsync(order);
 
             await _cartRepository.DeleteCartAsync(cart.Id);
@@ -174,12 +188,28 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
             // SAVE Order mới, update Tồn kho, update Lượt Coupon, Xóa Cart
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            string? paymentUrl = null;
+
+            if (request.PaymentMethod == PaymentMethod.PayOS)
+            {
+                try
+                {
+                    paymentUrl = await _payOsService.CreatePaymentAsync(order, payment);
+                }
+                catch (Exception ex)
+                {
+                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                    return Result<CheckoutResultDto>.Failure($"Lỗi tạo cổng thanh toán PayOS: {ex.Message}");
+                }
+            }
+
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return Result<CheckoutResultDto>.Success(new CheckoutResultDto
             {
                 OrderId = order.Id,
-                Message = "Order created successfully."
+                Message = "Order created successfully.",
+                PaymentUrl = paymentUrl
             });
         }
         catch

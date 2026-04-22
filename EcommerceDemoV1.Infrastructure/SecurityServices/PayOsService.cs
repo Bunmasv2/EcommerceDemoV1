@@ -36,7 +36,8 @@ public class PayOsService : IPayOsService
             Amount = (int)order.FinalTotal,
             Description = $"Thanh toan don {order.Id}", // Tối đa 25 ký tự, không dấu
             CancelUrl = $"{frontendUrl}/payment/cancel?orderId={order.Id}",
-            ReturnUrl = $"{frontendUrl}/payment/success?orderId={order.Id}"
+            ReturnUrl = $"{frontendUrl}/payment/success?orderId={order.Id}",
+            ExpiredAt = (int)DateTimeOffset.UtcNow.AddMinutes(15).ToUnixTimeSeconds()
         };
 
         try
@@ -50,7 +51,7 @@ public class PayOsService : IPayOsService
         }
     }
 
-    public PaymentWebhookResult VerifyPaymentWebhookData(JsonElement webhookBody)
+    public async Task<PaymentWebhookResult> VerifyPaymentWebhookData(JsonElement webhookBody)
     {
         try
         {
@@ -61,22 +62,25 @@ public class PayOsService : IPayOsService
             var payosWebhook = JsonSerializer.Deserialize<Webhook>(jsonString, options);
 
             if (payosWebhook == null || payosWebhook.Data == null)
-                return new PaymentWebhookResult(false, 0, "");
+                return new PaymentWebhookResult(false, false, false, 0, "");
 
-            var verifiedData = _payOsClient.Webhooks.VerifyAsync(payosWebhook).Result;
+            var verifiedData = await _payOsClient.Webhooks.VerifyAsync(payosWebhook);
 
             // 3. Nếu không văng lỗi -> Chữ ký hợp lệ 100%, không bị Hacker giả mạo!
             bool isSuccess = payosWebhook.Code == "00";
+            bool isExpired = payosWebhook.Code == "01";
+            bool isCancelled = payosWebhook.Code == "02";
+
             int orderId = (int)verifiedData.OrderCode;
             string transactionId = verifiedData.Reference ?? "UNKNOWN";
 
-            return new PaymentWebhookResult(isSuccess, orderId, transactionId);
+            return new PaymentWebhookResult(isSuccess, isCancelled, isExpired, orderId, transactionId);
         }
         catch (Exception ex)
         {
             // Nếu Hacker gửi data giả mạo hoặc sai ChecksumKey, nó sẽ bay vào đây
             Console.WriteLine($"[SECURITY ALERT] Xác thực Webhook thất bại: {ex.Message}");
-            return new PaymentWebhookResult(false, 0, "");
+            return new PaymentWebhookResult(false, false, false, 0, "");
         }
     }
 }

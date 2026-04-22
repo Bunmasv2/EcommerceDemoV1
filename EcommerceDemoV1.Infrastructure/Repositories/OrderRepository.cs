@@ -67,7 +67,9 @@ public class OrderRepository : IOrderRepository
     {
         return await _context.Orders
             .Include(o => o.Items)
-            .Where(o => o.Status == OrderStatus.Pending && o.PaymentStatus == PaymentStatus.Pending && o.CreatedAt < expiredTime)
+            .Include(o => o.Payments)
+            .Where(o => o.Status == OrderStatus.Pending && o.PaymentStatus == PaymentStatus.Pending && o.CreatedAt < expiredTime && o.Payments.Any(p => p.Method == PaymentMethod.PayOS || p.Method == PaymentMethod.VNPay))
+            .AsSplitQuery()
             .ToListAsync();
     }
 
@@ -80,5 +82,15 @@ public class OrderRepository : IOrderRepository
             .OrderByDescending(o => o.CreatedAt)
             .AsNoTracking()
             .ToListAsync();
+    }
+
+    public async Task<Order> UpdateOrderStatusAsync(int orderId, OrderStatus newStatus)
+    {
+        var order = await _context.Orders.FindAsync(orderId);
+        if (order == null) return null;
+
+        order.Status = newStatus;
+        _context.Orders.Update(order);
+        return order;
     }
 }
