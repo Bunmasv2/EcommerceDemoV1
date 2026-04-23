@@ -43,4 +43,9 @@ public class UserRepository : IUserRepository
             .Select(u => u.FullName)
             .FirstOrDefaultAsync();
     }
+
+    public async Task<User?> GetByRefreshTokenAsync(string refreshToken)
+    {
+        return await _context.Users.FirstOrDefaultAsync(x => x.RefreshToken == refreshToken);
+    }
 }

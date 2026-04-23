@@ -46,12 +46,49 @@ public static class AuthEndpoints
                 HttpOnly = true,
                 Secure = true,
                 SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(180)
+                Expires = DateTime.UtcNow.AddMinutes(15)
+            };
+
+            var refreshCookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(7)
             };
 
             context.Response.Cookies.Append("AccessToken", authResponse.AccessToken, cookieOptions);
+            context.Response.Cookies.Append("RefreshToken", authResponse.RefreshToken, refreshCookieOptions);
 
             return Results.Ok(new { Message = "Login successful", User = authResponse.infoUser });
+        }).WithTags("Auth");
+
+        group.MapPost("/refresh", async (IMediator mediator, HttpContext context) =>
+        {
+            if (!context.Request.Cookies.TryGetValue("RefreshToken", out var refreshToken))
+            {
+                return Results.Unauthorized();
+            }
+
+            try
+            {
+                var command = new RefreshTokenCommand(refreshToken);
+                var authResponse = await mediator.Send(command);
+
+                var accessOptions = new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict, Expires = DateTime.UtcNow.AddMinutes(15) };
+                var refreshOptions = new CookieOptions { HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict, Expires = DateTime.UtcNow.AddDays(7) };
+
+                context.Response.Cookies.Append("AccessToken", authResponse.AccessToken, accessOptions);
+                context.Response.Cookies.Append("RefreshToken", authResponse.RefreshToken, refreshOptions);
+
+                return Results.Ok(new { Message = "Token refreshed successfully" });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                context.Response.Cookies.Delete("AccessToken");
+                context.Response.Cookies.Delete("RefreshToken");
+                return Results.Unauthorized();
+            }
         }).WithTags("Auth");
     }
 }

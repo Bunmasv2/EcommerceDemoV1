@@ -15,6 +15,8 @@ public class User
     public MemberRank MemberRank { get; set; } = MemberRank.Bronze; // Bronze | Silver | Gold | Diamond
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpiryTime { get; set; }
 
     public Cart? Cart { get; set; }
     public ICollection<Order> Orders { get; set; } = new List<Order>();

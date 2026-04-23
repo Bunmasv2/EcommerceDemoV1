@@ -8,6 +8,6 @@ public interface IUserRepository
     Task<string?> GetUserNameByIdAsync(int id);
     Task AddAsync(User user);
     Task UpdateAsync(User user);
-
+    Task<User?> GetByRefreshTokenAsync(string refreshToken);
 
 }
