@@ -21,6 +21,8 @@ public class Order
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Pending;
 
     public string ShippingAddress { get; set; } = null!;
+    public string ReceiverName { get; set; } = null!; // Tên người nhận (Bắt buộc cho Ahamove)
+    public string ReceiverPhone { get; set; } = null!;
     public string? TrackingCode { get; set; }
     public string? PayOsOrderId { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

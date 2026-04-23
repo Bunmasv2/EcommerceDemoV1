@@ -49,4 +49,10 @@ public class ReviewRepository : IReviewRepository
 
         return (averageRating, totalReviews);
     }
+
+    public async Task<bool> GetByProductUserOrderAsync(int productId, int userId, int orderId)
+    {
+        return await _context.Reviews
+            .AnyAsync(r => r.ProductId == productId && r.UserId == userId && r.OrderId == orderId);
+    }
 }

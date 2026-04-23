@@ -30,7 +30,7 @@ public record CreateReviewCommandHandler : IRequestHandler<CreateReviewCommand, 
         if (product == null)
             return Result<ReviewDto>.Failure("Product not found.");
 
-        var userId = int.Parse(_currentUserService.UserId);
+        var userId = int.Parse(_currentUserService.UserId ?? throw new UnauthorizedAccessException("Người dùng chưa đăng nhập."));
         var order = await _orderRepository.GetOrderCompletedAsync(userId, request.ProductId);
         if (!order.Any())
             return Result<ReviewDto>.Failure("You must have purchased this product to leave a review.");
@@ -38,6 +38,9 @@ public record CreateReviewCommandHandler : IRequestHandler<CreateReviewCommand, 
         var user = await _userRepository.GetByIdAsync(userId);
         if (user == null)
             return Result<ReviewDto>.Failure("User not found.");
+        var existingReview = await _reviewRepository.GetByProductUserOrderAsync(request.ProductId, userId, order.First().Id);
+        if (existingReview)
+            return Result<ReviewDto>.Failure("You have already reviewed this product for this order.");
 
         var review = new Review
         {

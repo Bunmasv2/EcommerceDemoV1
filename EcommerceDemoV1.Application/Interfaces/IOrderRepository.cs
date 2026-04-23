@@ -11,5 +11,6 @@ public interface IOrderRepository
     Task<List<Order>> GetExpiredPendingOrdersAsync(DateTime expiredTime);
     Task<List<Order>> GetOrderCompletedAsync(int userId, int productId);
     Task<Order?> UpdateOrderStatusAsync(int orderId, OrderStatus newStatus);
+    Task<Order?> GetOrderWithDetailsAsync(int orderId);
     // Task<bool> ReviewExistsAsync(int productId, int userId, int orderId);
 }

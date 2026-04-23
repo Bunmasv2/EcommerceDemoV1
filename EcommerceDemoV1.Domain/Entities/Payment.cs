@@ -1,4 +1,5 @@
 using EcommerceDemoV1.Domain.Enums;
+
 namespace EcommerceDemoV1.Domain.Entities;
 
 public class Payment
@@ -6,7 +7,7 @@ public class Payment
     public int Id { get; set; }
     public int OrderId { get; set; }
 
-    public string? PayOsOrderId { get; set; }      // Mã đơn hàng gửi lên PayOS
+    public string? PayOsOrderId { get; set; }
     public string? PayOsTransactionId { get; set; }
 
     public decimal Amount { get; set; }

@@ -21,7 +21,7 @@ public class GetProductVariantQueryHandler : IRequestHandler<GetProductVariantQu
     {
         var items = await _productVariantRepository.GetPagedAsync(
             request.Page,
-            request.Size,
+            request.Size ?? 10,
             request.Category,
             request.MinPrice,
             request.MaxPrice);
@@ -43,7 +43,7 @@ public class GetProductVariantQueryHandler : IRequestHandler<GetProductVariantQu
             Items = productDtos,
             TotalCount = totalCount,
             Page = request.Page,
-            Size = request.Size
+            Size = request.Size ?? 10
         };
     }
 }

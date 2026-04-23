@@ -4,6 +4,8 @@ using EcommerceDemoV1.Domain.Entities;
 using EcommerceDemoV1.Application.Common;
 using EcommerceDemoV1.Domain.Services;
 using EcommerceDemoV1.Domain.Enums;
+using Microsoft.Extensions.Options;
+using EcommerceDemoV1.Domain.Common;
 
 namespace EcommerceDemoV1.Application.Features.Orders.Commands.Checkout;
 
@@ -19,7 +21,10 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
     private readonly ICurrentUserService _CurrentUserService;
     private readonly IPayOsService _payOsService;
 
-    public CheckoutCommandHandler(IUnitOfWork unitOfWork, ICartRepository cartRepository, IProductVariantRepository productVariantRepository, IPromotionRuleRepository promotionRuleRepository, ICouponRepository couponRepository, IUserRepository userRepository, IOrderRepository orderRepository, ICurrentUserService currentUserService, IPayOsService payOsService)
+    private readonly IAhamoveService _ahamoveService;
+    private readonly AhamoveSettings _ahamoveSettings;
+
+    public CheckoutCommandHandler(IUnitOfWork unitOfWork, ICartRepository cartRepository, IProductVariantRepository productVariantRepository, IPromotionRuleRepository promotionRuleRepository, ICouponRepository couponRepository, IUserRepository userRepository, IOrderRepository orderRepository, ICurrentUserService currentUserService, IPayOsService payOsService, IAhamoveService ahamoveService, IOptions<AhamoveSettings> ahamoveSettings)
     {
         _unitOfWork = unitOfWork;
         _cartRepository = cartRepository;
@@ -30,27 +35,66 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
         _orderRepository = orderRepository;
         _CurrentUserService = currentUserService;
         _payOsService = payOsService;
+        _ahamoveService = ahamoveService;
+        _ahamoveSettings = ahamoveSettings.Value;
     }
 
     public async Task<Result<CheckoutResultDto>> Handle(CheckoutCommand request, CancellationToken cancellationToken)
     {
         var userId = int.Parse(_CurrentUserService.UserId ?? throw new UnauthorizedAccessException("User is not authenticated."));
+        var cart = await _cartRepository.GetCartByUserIdAsync(userId);
+        if (cart == null || !cart.Items.Any())
+            return Result<CheckoutResultDto>.Failure("Cart is empty.");
+
+        var user = await _userRepository.GetByIdAsync(userId);
+        if (user == null)
+            return Result<CheckoutResultDto>.Failure($"Không tìm thấy User với ID = {userId} trong Database. Bác kiểm tra lại Token nhé!");
+
+        //  GỌI EXTERNAL API CỦA AHAMOVE BÊN NGOÀI TRANSACTION
+        var pickupLocation = new Location(
+            Latitude: _ahamoveSettings.Latitude,
+            Longitude: _ahamoveSettings.Longitude,
+            Address: _ahamoveSettings.Address
+        );
+
+        Location deliveryLocation;
+        EstimateResponse estimateResponse;
+        try
+        {
+            deliveryLocation = await _ahamoveService.GeocodeAddressAsync(request.ShippingAddress);
+            estimateResponse = await _ahamoveService.EstimateOrderFeeAsync(
+                pickupLocation: pickupLocation,
+                deliveryLocation: deliveryLocation,
+                weightKg: 1,
+                serviceId: _ahamoveSettings.ServiceId
+            );
+        }
+        catch (Exception ex)
+        {
+            return Result<CheckoutResultDto>.Failure($"Lỗi tính phí giao hàng: {ex.Message}");
+        }
+
+        decimal finalShippingFee = estimateResponse.TotalPay;
+
+        Order? order = null;
+        EcommerceDemoV1.Domain.Entities.Payment? payment = null;
 
         await _unitOfWork.BeginTransactionAsync(System.Data.IsolationLevel.RepeatableRead, cancellationToken);
         try
         {
-            var cart = await _cartRepository.GetCartByUserIdAsync(userId);
-            if (cart == null || !cart.Items.Any())
-                return Result<CheckoutResultDto>.Failure("Cart is empty.");
-
-            var user = await _userRepository.GetByIdAsync(userId);
-
             // 1. Chạy Promotion Engine
             var activePromotionRules = await _promotionRuleRepository.GetActivePromotionRulesAsync(DateTime.UtcNow);
+            if (activePromotionRules == null)
+                activePromotionRules = new List<PromotionRule>();
+
             var engine = new PromotionEngine();
             var promotionResult = engine.ApplyBestRule(cart.Items, activePromotionRules);
+            if (promotionResult == null)
+                return Result<CheckoutResultDto>.Failure("Cỗ máy PromotionEngine đang trả về kết quả rỗng (null).");
+            if (promotionResult.Gifts == null)
+                promotionResult.Gifts = new List<GiftItem>();
 
-            // 2. GOM TOÀN BỘ ID SẢN PHẨM (Hàng mua + Quà tặng) ĐỂ QUERY 1 LẦN DUY NHẤT
+            //GOM TOÀN BỘ ID SẢN PHẨM (Hàng mua + Quà tặng) ĐỂ QUERY 1 LẦN DUY NHẤT
             var variantIdsToFetch = cart.Items.Select(i => i.ProductVariantId)
                 .Union(promotionResult.Gifts.Select(g => g.ProductVariantId))
                 .Distinct()
@@ -64,7 +108,7 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
             var inventoryToDeduct = new Dictionary<int, int>();
             decimal subTotal = 0;
 
-            // 3. TÍNH TIỀN & GOM LƯỢNG TỒN KHO CẦN TRỪ
+            //TÍNH TIỀN & GOM LƯỢNG TỒN KHO CẦN TRỪ
             foreach (var item in cart.Items)
             {
                 if (!variantDict.TryGetValue(item.ProductVariantId, out var productVariant))
@@ -86,7 +130,7 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
                     inventoryToDeduct.Add(gift.ProductVariantId, gift.Quantity);
             }
 
-            // 4. KIỂM TRA VÀ TRỪ TỒN KHO LẦN CUỐI
+            // KIỂM TRA VÀ TRỪ TỒN KHO LẦN CUỐI
             foreach (var kvp in inventoryToDeduct)
             {
                 var variantId = kvp.Key;
@@ -100,14 +144,11 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
                 productVariant.StockQuantity -= totalQuantityNeeded;
             }
 
-            // 5. TÍNH TOÁN GIÁ TRỊ TỔNG (Coupon, Rank)
-            decimal totalAfterPromotion = subTotal - promotionResult.TotalDiscount;
-            if (totalAfterPromotion < 0) totalAfterPromotion = 0;
-
+            // TÍNH TOÁN GIÁ TRỊ TỔNG (Coupon, Rank)
+            decimal totalAfterPromotion = Math.Max(0, subTotal - promotionResult.TotalDiscount);
             decimal rankDiscountRate = RankService.GetDiscountRate(user.MemberRank);
             decimal rankDiscountAmount = totalAfterPromotion * rankDiscountRate;
-            decimal totalAfterRank = totalAfterPromotion - rankDiscountAmount;
-            if (totalAfterRank < 0) totalAfterRank = 0;
+            decimal totalAfterRank = Math.Max(0, totalAfterPromotion - rankDiscountAmount);
 
             decimal couponDiscountAmount = 0;
             Coupon? appliedCoupon = null;
@@ -116,21 +157,21 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
             {
                 appliedCoupon = await _couponRepository.GetValidCouponByCodeAsync(request.CouponCode, DateTime.UtcNow);
                 if (appliedCoupon == null || appliedCoupon.UsageLimit <= 0)
-                    return Result<CheckoutResultDto>.Failure("Invalid or expired coupon code.");
+                    return Result<CheckoutResultDto>.Failure("Mã giảm giá không hợp lệ hoặc đã hết hạn.");
 
                 if (totalAfterRank < appliedCoupon.MinOrderValue)
-                    return Result<CheckoutResultDto>.Failure($"Order total must be at least {appliedCoupon.MinOrderValue} to use this coupon.");
+                    return Result<CheckoutResultDto>.Failure($"Đơn hàng phải tối thiểu {appliedCoupon.MinOrderValue} để dùng mã này.");
 
                 appliedCoupon.UsageLimit -= 1;
                 couponDiscountAmount = appliedCoupon.DiscountType == "PERCENTAGE"
-                    ? totalAfterRank * (appliedCoupon.Value / 100)
-                    : appliedCoupon.Value;
+                    ? totalAfterRank * (appliedCoupon.Value / 100) : appliedCoupon.Value;
             }
 
-            decimal finalTotal = totalAfterRank - couponDiscountAmount;
-            if (finalTotal < 0) finalTotal = 0;
+            decimal CODTotal = Math.Max(0, totalAfterRank - couponDiscountAmount);
 
-            // 6. TẠO ORDER ITEMS
+            decimal finalTotal = CODTotal + finalShippingFee;
+
+            //TẠO ORDER ITEMS
             var orderItems = new List<OrderItem>();
 
             foreach (var item in cart.Items)
@@ -157,10 +198,12 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
             var initialPaymentStatus = finalTotal == 0 ? PaymentStatus.Paid : PaymentStatus.Pending;
 
             // 7. LƯU ĐƠN HÀNG
-            var order = new Order
+            order = new Order
             {
                 UserId = userId,
                 ShippingAddress = request.ShippingAddress,
+                ReceiverName = request.ReceiverName ?? user.FullName,
+                ReceiverPhone = request.ReceiverPhone,
                 Status = initialOrderStatus,
                 PaymentStatus = initialPaymentStatus,
                 SubTotal = subTotal,
@@ -168,54 +211,99 @@ public class CheckoutCommandHandler : IRequestHandler<CheckoutCommand, Result<Ch
                 RankDiscount = rankDiscountAmount,
                 CouponDiscount = couponDiscountAmount,
                 CouponCode = appliedCoupon?.Code,
+                ShippingFee = finalShippingFee,
                 FinalTotal = finalTotal,
                 Items = orderItems
             };
 
-            var payment = new EcommerceDemoV1.Domain.Entities.Payment
+            payment = new EcommerceDemoV1.Domain.Entities.Payment
             {
                 Amount = finalTotal,
                 Method = finalTotal == 0 ? PaymentMethod.COD : request.PaymentMethod,
                 Status = PaymentStatus.Pending
             };
 
+            if (payment == null)
+                return Result<CheckoutResultDto>.Failure("Payment object is null.");
+
             order.Payments.Add(payment);
+
+            var shipment = new EcommerceDemoV1.Domain.Entities.Shipment
+            {
+                ServiceId = _ahamoveSettings.ServiceId,
+                Status = "IDLE",
+                ShippingFee = finalShippingFee,
+                Distance = estimateResponse.Distance
+            };
+            order.Shipments.Add(shipment);
 
             await _orderRepository.CreateOrderAsync(order);
 
             await _cartRepository.DeleteCartAsync(cart.Id);
 
-            // SAVE Order mới, update Tồn kho, update Lượt Coupon, Xóa Cart
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-            string? paymentUrl = null;
-
-            if (request.PaymentMethod == PaymentMethod.PayOS)
-            {
-                try
-                {
-                    paymentUrl = await _payOsService.CreatePaymentAsync(order, payment);
-                }
-                catch (Exception ex)
-                {
-                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-                    return Result<CheckoutResultDto>.Failure($"Lỗi tạo cổng thanh toán PayOS: {ex.Message}");
-                }
-            }
-
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
-
-            return Result<CheckoutResultDto>.Success(new CheckoutResultDto
-            {
-                OrderId = order.Id,
-                Message = "Order created successfully.",
-                PaymentUrl = paymentUrl
-            });
         }
-        catch
+        catch (Exception ex)
         {
             await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return Result<CheckoutResultDto>.Failure("An error occurred during checkout. Please try again.");
+            return Result<CheckoutResultDto>.Failure($"NRE ở dòng nào: {ex.StackTrace}");
         }
+
+        string? paymentUrl = null;
+        string warningMessage = "";
+        if (request.PaymentMethod == PaymentMethod.COD || order.FinalTotal == 0)
+        {
+            try
+            {
+                var createOrderRequest = new CreateOrderRequest(
+                    OrderCode: order.Id.ToString(),
+                    WeightKg: 1,
+                    PickupLocation: pickupLocation,
+                    DeliveryLocation: deliveryLocation,
+                    DeliveryName: order.ReceiverName,
+                    DeliveryPhone: order.ReceiverPhone,
+                    Note: "Gọi điện trước khi giao",
+                    ServiceId: _ahamoveSettings.ServiceId,
+                    CodAmount: (int)order.FinalTotal
+                );
+
+                var ahamoveResponse = await _ahamoveService.CreateOrderAsync(createOrderRequest);
+
+                var shipment = order.Shipments.First();
+                shipment.AhamoveOrderId = ahamoveResponse.OrderId;
+                shipment.TrackingUrl = ahamoveResponse.SharedLink;
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return Result<CheckoutResultDto>.Failure($"Lỗi tạo đơn vận chuyển AhaMove: {ex.Message}");
+            }
+        }
+
+
+        if (request.PaymentMethod == PaymentMethod.PayOS)
+        {
+            try
+            {
+                paymentUrl = await _payOsService.CreatePaymentAsync(order, payment);
+            }
+            catch (Exception ex)
+            {
+                return Result<CheckoutResultDto>.Success(new CheckoutResultDto
+                {
+                    OrderId = order.Id,
+                    Message = $"Đơn hàng đã tạo thành công nhưng hệ thống PayOS đang gián đoạn. Vui lòng thanh toán sau. Lỗi: {ex.Message}"
+                });
+            }
+        }
+        return Result<CheckoutResultDto>.Success(new CheckoutResultDto
+        {
+            OrderId = order.Id,
+            Message = "Order created successfully.",
+            PaymentUrl = paymentUrl
+        });
     }
 }

@@ -93,4 +93,14 @@ public class OrderRepository : IOrderRepository
         _context.Orders.Update(order);
         return order;
     }
+
+    public async Task<Order?> GetOrderWithDetailsAsync(int orderId)
+    {
+        return await _context.Orders
+            .Include(o => o.Shipments)
+            .Include(o => o.Items)
+                .ThenInclude(i => i.ProductVariant)
+            .Include(o => o.Payments)
+            .FirstOrDefaultAsync(o => o.Id == orderId);
+    }
 }

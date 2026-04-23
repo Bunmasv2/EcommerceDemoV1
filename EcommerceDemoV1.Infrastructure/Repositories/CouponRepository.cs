@@ -25,7 +25,9 @@ public class CouponRepository : ICouponRepository
 
     public async Task<List<Coupon>> GetAllAsync()
     {
-        return await _context.Coupons.ToListAsync();
+        return await _context.Coupons
+        .Where(c => c.EndDate >= DateTime.UtcNow && c.IsActive && c.UsageLimit > 0)
+        .ToListAsync();
     }
 
     public async Task AddCouponAsync(Coupon coupon)

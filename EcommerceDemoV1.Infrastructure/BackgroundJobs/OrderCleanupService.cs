@@ -23,11 +23,24 @@ public class OrderCleanupService : BackgroundService
     {
         _logger.LogInformation("Order Cleanup Service started.");
 
+        try
+        {
+            await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return; // App shutdown trước khi delay xong, thoát sạch
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
                 await ProcessExpiredOrdersAsync(stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break; // App đang shutdown, thoát vòng lặp sạch sẽ
             }
             catch (Exception ex)
             {

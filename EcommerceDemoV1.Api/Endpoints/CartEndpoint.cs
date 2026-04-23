@@ -26,7 +26,7 @@ public static class CartEndpoint
 
             var result = await mediator.Send(command);
             return Results.Ok(result);
-        }).RequireAuthorization();
+        }).RequireAuthorization("UserOnly");
 
         group.MapGet("/", async (
             IMediator mediator) =>

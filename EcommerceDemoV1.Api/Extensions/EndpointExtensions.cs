@@ -8,6 +8,7 @@ public static class EndpointExtensions
     {
         app.MapAuthEndpoints();
         app.MapProductEndpoints();
+        app.MapCategoryEndpoints();
         app.MapProductVariantEndpoints();
         app.MapCartEndpoints();
         app.MapCouponEndpoints();
@@ -15,5 +16,6 @@ public static class EndpointExtensions
         app.MapOrderEndpoints();
         app.MapPaymentEndpoints();
         app.MapReviewEndpoints();
+        app.MapShipmentEndpoints();
     }
 }

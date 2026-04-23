@@ -9,6 +9,7 @@ using EcommerceDemoV1.Infrastructure;
 using EcommerceDemoV1.Api.Extensions;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
+using EcommerceDemoV1.Application.Common;
 
 
 Env.Load();
@@ -23,6 +24,8 @@ builder.Services.AddInfrastructure(builder.Configuration);
 
 // Đăng ký Background Job dọn dẹp đơn hàng
 builder.Services.AddHostedService<EcommerceDemoV1.Infrastructure.BackgroundJobs.OrderCleanupService>();
+builder.Services.Configure<AhamoveSettings>(builder.Configuration.GetSection("Ahamove"));
+builder.Services.AddMemoryCache();
 
 // JWT
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -60,6 +63,33 @@ builder.Services.AddAuthentication(options =>
                 context.Token = context.Request.Cookies["AccessToken"];
             }
             return Task.CompletedTask;
+        },
+        OnChallenge = context =>
+        {
+            context.HandleResponse(); // Bỏ qua response mặc định của .NET
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            context.Response.ContentType = "application/json";
+
+            var result = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                success = false,
+                message = "Bạn chưa đăng nhập hoặc phiên đăng nhập đã hết hạn."
+            });
+
+            return context.Response.WriteAsync(result);
+        },
+        OnForbidden = context =>
+        {
+            context.Response.StatusCode = StatusCodes.Status403Forbidden;
+            context.Response.ContentType = "application/json";
+
+            var result = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                success = false,
+                message = "Bạn không có quyền truy cập vào chức năng này."
+            });
+
+            return context.Response.WriteAsync(result);
         }
     };
 });

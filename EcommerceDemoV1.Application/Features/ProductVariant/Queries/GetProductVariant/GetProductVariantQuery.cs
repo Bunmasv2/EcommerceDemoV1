@@ -6,7 +6,7 @@ namespace EcommerceDemoV1.Application.Features.ProductVariant.Queries.GetProduct
 
 public record GetProductVariantQuery(
     int Page,
-    int Size,
+    int? Size = 10,
     string? Category = null,
     decimal? MinPrice = null,
     decimal? MaxPrice = null

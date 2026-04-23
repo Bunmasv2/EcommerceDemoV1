@@ -31,7 +31,7 @@ public class PromotionEngine
             var currentResult = new PromotionCalculationResult();
             decimal currentBenefitValue = 0;
 
-            // 1. Dùng thử Rule Giảm giá theo Danh mục
+            //Dùng thử Rule Giảm giá theo Danh mục
             if (rule.Type == PromotionType.CategoryDiscount && rule.ApplyToCategoryId.HasValue)
             {
                 if (itemsByCategoryId.TryGetValue(rule.ApplyToCategoryId.Value, out var targetItems))
@@ -46,7 +46,7 @@ public class PromotionEngine
                 }
             }
 
-            // 2. Dùng thử Rule Mua X tặng Y
+            //Dùng thử Rule Mua X tặng Y
             else if (rule.Type == PromotionType.BuyXGetYFree && rule.ApplyToProductVariantId.HasValue)
             {
                 if (itemsByVariantId.TryGetValue(rule.ApplyToProductVariantId.Value, out var item) && item.Quantity >= rule.MinQuantity)
@@ -66,7 +66,7 @@ public class PromotionEngine
             if (currentBenefitValue > maxBenefitValue)
             {
                 maxBenefitValue = currentBenefitValue;
-                bestResult = currentResult; // Ghi đè kết quả tốt nhất
+                bestResult = currentResult;
             }
         }
 

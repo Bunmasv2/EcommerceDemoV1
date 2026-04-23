@@ -14,6 +14,7 @@ public class CartRepository : ICartRepository
     {
         return _context.Carts.AnyAsync(c => c.Id == cartId);
     }
+
     public async Task<Cart?> GetCartByUserIdAsync(int userId)
     {
         return await _context.Carts

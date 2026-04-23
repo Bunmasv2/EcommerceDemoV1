@@ -43,6 +43,13 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
             .IsRequired()
             .HasMaxLength(300);
 
+        builder.Property(o => o.ReceiverName)
+            .IsRequired()
+            .HasMaxLength(100);
+        builder.Property(o => o.ReceiverPhone)
+            .IsRequired()
+            .HasMaxLength(20);
+
         builder.Property(o => o.TrackingCode)
             .HasMaxLength(100);
 

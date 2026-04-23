@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using EcommerceDemoV1.Infrastructure.ExternalServices;
 
 namespace EcommerceDemoV1.Infrastructure;
 
@@ -28,10 +29,14 @@ public static class DependencyInjection
         services.AddScoped<ICouponRepository, CouponRepository>();
         services.AddScoped<IReviewRepository, ReviewRepository>();
         services.AddScoped<IPromotionRuleRepository, PromotionRuleRepository>();
+        services.AddScoped<IShipmentRepository, ShipmentRepository>();
 
         // // Services
         services.AddScoped<IPayOsService, PayOsService>();
         // services.AddScoped<IVnPayService, VnPayService>();
+
+        // HttpClient for Ahamove
+        services.AddHttpClient<IAhamoveService, AhamoveService>();
 
         // // UnitOfWork
         services.AddScoped<IUnitOfWork, UnitOfWork>();

@@ -192,6 +192,16 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                     b.Property<decimal>("RankDiscount")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("ReceiverName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ReceiverPhone")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<string>("ShippingAddress")
                         .IsRequired()
                         .HasMaxLength(300)
@@ -497,8 +507,32 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<double>("DeliveryLatitude")
+                        .HasColumnType("float");
+
+                    b.Property<double>("DeliveryLongitude")
+                        .HasColumnType("float");
+
+                    b.Property<double?>("Distance")
+                        .HasColumnType("float");
+
+                    b.Property<string>("DriverName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DriverPhone")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
+
+                    b.Property<string>("ServiceId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<decimal>("ShippingFee")
+                        .HasColumnType("decimal(18,0)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -508,6 +542,9 @@ namespace EcommerceDemoV1.Infrastructure.Migrations
                     b.Property<string>("TrackingUrl")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
