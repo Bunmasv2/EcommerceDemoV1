@@ -10,6 +10,8 @@ using EcommerceDemoV1.Api.Extensions;
 using Microsoft.OpenApi.Models;
 using DotNetEnv;
 using EcommerceDemoV1.Application.Common;
+using System.Security.Claims;
+using System.IdentityModel.Tokens.Jwt;
 
 
 Env.Load();
@@ -56,17 +58,54 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
-            // Kiểm tra xem trong Request có Cookie nào tên là "AccessToken" không
             if (context.Request.Cookies.ContainsKey("AccessToken"))
             {
-                // Nếu có, gán nó vào ngữ cảnh để hệ thống tự động xác thực
                 context.Token = context.Request.Cookies["AccessToken"];
+            }
+            return Task.CompletedTask;
+        },
+
+        OnTokenValidated = context =>
+        {
+            var expClaim = context.Principal?.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Exp)?.Value;
+
+            if (long.TryParse(expClaim, out var exp))
+            {
+                var expirationTime = DateTimeOffset.FromUnixTimeSeconds(exp).UtcDateTime;
+                var timeRemaining = expirationTime - DateTime.UtcNow;
+
+                // Nếu Token chỉ còn sống DƯỚI 5 PHÚT -> Tự động cấp mới
+                if (timeRemaining < TimeSpan.FromMinutes(1) && timeRemaining > TimeSpan.Zero)
+                {
+                    var jwtService = context.HttpContext.RequestServices.GetRequiredService<IJwtService>();
+
+                    // Trích xuất lại thông tin User từ Token cũ
+                    var userIdStr = context.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                    var email = context.Principal?.FindFirstValue(ClaimTypes.Email) ?? "";
+                    var role = context.Principal?.FindFirstValue(ClaimTypes.Role) ?? "";
+
+                    if (int.TryParse(userIdStr, out var userId))
+                    {
+                        //ạo Access Token mới tinh (lại có tuổi thọ 15 phút)
+                        var newAccessToken = jwtService.GenerateToken(userId, email, role);
+
+                        //Ghi đè Cookie mới vào Response để gửi về cho Frontend
+                        var cookieOptions = new CookieOptions
+                        {
+                            HttpOnly = true,
+                            Secure = true,
+                            SameSite = SameSiteMode.Strict,
+                            Expires = DateTime.UtcNow.AddMinutes(15)
+                        };
+                        context.HttpContext.Response.Cookies.Append("AccessToken", newAccessToken, cookieOptions);
+                    }
+                }
             }
             return Task.CompletedTask;
         },
         OnChallenge = context =>
         {
-            context.HandleResponse(); // Bỏ qua response mặc định của .NET
+            context.HandleResponse();
             context.Response.StatusCode = StatusCodes.Status401Unauthorized;
             context.Response.ContentType = "application/json";
 
