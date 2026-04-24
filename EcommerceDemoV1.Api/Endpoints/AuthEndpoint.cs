@@ -41,6 +41,11 @@ public static class AuthEndpoints
 
             var authResponse = await mediator.Send(command);
 
+            if (!authResponse.IsSuccess)
+            {
+                return Results.BadRequest(new { success = false, message = authResponse.ErrorMessage });
+            }
+
             var cookieOptions = new CookieOptions
             {
                 HttpOnly = true,
@@ -57,10 +62,10 @@ public static class AuthEndpoints
                 Expires = DateTime.UtcNow.AddDays(7)
             };
 
-            context.Response.Cookies.Append("AccessToken", authResponse.AccessToken, cookieOptions);
-            context.Response.Cookies.Append("RefreshToken", authResponse.RefreshToken, refreshCookieOptions);
+            context.Response.Cookies.Append("AccessToken", authResponse.Data.AccessToken, cookieOptions);
+            context.Response.Cookies.Append("RefreshToken", authResponse.Data.RefreshToken, refreshCookieOptions);
 
-            return Results.Ok(new { Message = "Login successful", User = authResponse.infoUser });
+            return Results.Ok(new { Message = "Login successful", User = authResponse.Data.infoUser });
         }).WithTags("Auth");
 
         group.MapPost("/refresh", async (IMediator mediator, HttpContext context) =>
