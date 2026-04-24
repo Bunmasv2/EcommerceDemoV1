@@ -1,7 +1,7 @@
 using EcommerceDemoV1.Application.DTOs.Auth;
 using MediatR;
 
-public class LoginUserHandler : IRequestHandler<LoginUserCommand, AuthResponse>
+public class LoginUserHandler : IRequestHandler<LoginUserCommand, Result<AuthResponse>>
 {
     private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
@@ -15,16 +15,16 @@ public class LoginUserHandler : IRequestHandler<LoginUserCommand, AuthResponse>
         _passwordService = passwordService;
         _unitOfWork = unitOfWork;
     }
-    public async Task<AuthResponse> Handle(LoginUserCommand loginUserCommand, CancellationToken cancellationToken)
+    public async Task<Result<AuthResponse>> Handle(LoginUserCommand loginUserCommand, CancellationToken cancellationToken)
     {
 
         var user = await _userRepository.GetByEmailAsync(loginUserCommand.Email);
         if (user == null)
-            throw new Exception("Invalid email or password");
+            return Result<AuthResponse>.Failure("Invalid email or password");
 
         var validPassword = await _passwordService.VerifyPasswordAsync(user.PasswordHash, loginUserCommand.Password);
         if (!validPassword)
-            throw new Exception("Invalid email or password");
+            return Result<AuthResponse>.Failure("Invalid email or password");
 
         var refreshToken = _jwtService.GenerateRefreshToken();
         user.RefreshToken = refreshToken;
@@ -32,7 +32,7 @@ public class LoginUserHandler : IRequestHandler<LoginUserCommand, AuthResponse>
         await _userRepository.UpdateAsync(user);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new AuthResponse
+        return Result<AuthResponse>.Success(new AuthResponse
         {
             AccessToken = _jwtService.GenerateToken(user.Id, user.Email, user.Role),
             RefreshToken = refreshToken,
@@ -43,7 +43,7 @@ public class LoginUserHandler : IRequestHandler<LoginUserCommand, AuthResponse>
                 user.Role,
                 user.MemberRank
             }
-        };
+        });
     }
 
 }

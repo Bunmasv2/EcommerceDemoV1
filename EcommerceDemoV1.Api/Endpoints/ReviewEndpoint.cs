@@ -29,5 +29,13 @@ public static class ReviewEndpoints
             }
             return Results.Ok(new { success = true, result, message = "Review created successfully" });
         }).RequireAuthorization();
+
+        group.MapGet("/product/{productId}", async (
+            int productId,
+            IMediator mediator) =>
+        {
+            var reviews = await mediator.Send(new GetReviewQuery(productId));
+            return Results.Ok(reviews);
+        });
     }
 }
