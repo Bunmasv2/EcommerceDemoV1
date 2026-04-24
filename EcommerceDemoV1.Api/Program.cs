@@ -86,10 +86,8 @@ builder.Services.AddAuthentication(options =>
 
                     if (int.TryParse(userIdStr, out var userId))
                     {
-                        //ạo Access Token mới tinh (lại có tuổi thọ 15 phút)
                         var newAccessToken = jwtService.GenerateToken(userId, email, role);
 
-                        //Ghi đè Cookie mới vào Response để gửi về cho Frontend
                         var cookieOptions = new CookieOptions
                         {
                             HttpOnly = true,
