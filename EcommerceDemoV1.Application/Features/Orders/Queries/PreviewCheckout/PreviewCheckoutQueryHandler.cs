@@ -41,7 +41,7 @@ public class PreviewCheckoutQueryHandler : IRequestHandler<PreviewCheckoutQuery,
         if (string.IsNullOrEmpty(userIdString) || !int.TryParse(userIdString, out var userId))
             return Result<PreviewCheckoutDto>.Failure("User is not authenticated.");
 
-        var cart = await _cartRepository.GetCartByUserIdAsync(userId);
+        var cart = await _cartRepository.GetCartByUserIdAsync(userId, false);
         if (cart == null || !cart.Items.Any())
             return Result<PreviewCheckoutDto>.Failure("Cart is empty.");
 

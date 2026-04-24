@@ -15,14 +15,18 @@ public class CartRepository : ICartRepository
         return _context.Carts.AnyAsync(c => c.Id == cartId);
     }
 
-    public async Task<Cart?> GetCartByUserIdAsync(int userId)
+    public async Task<Cart?> GetCartByUserIdAsync(int userId, bool trackChanges = true)
     {
-        return await _context.Carts
+        var query = _context.Carts
             .Include(c => c.Items)
                 .ThenInclude(ci => ci.ProductVariant)
                     .ThenInclude(v => v.Product)
-            .AsNoTracking()
-            .FirstOrDefaultAsync(c => c.UserId == userId);
+            .AsQueryable();
+        if (!trackChanges)
+        {
+            query = query.AsNoTracking();
+        }
+        return await query.FirstOrDefaultAsync(c => c.UserId == userId);
     }
     public async Task<Cart> CreateCartAsync(Cart cart)
     {

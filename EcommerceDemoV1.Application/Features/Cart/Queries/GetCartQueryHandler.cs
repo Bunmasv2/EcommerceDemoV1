@@ -23,7 +23,7 @@ public class GetCartQueryHandler : IRequestHandler<GetCartQuery, CartDto>
         var userId = _currentUserService.UserId;
         if (string.IsNullOrEmpty(userId)) throw new UnauthorizedAccessException();
 
-        var cart = await _cartRepository.GetCartByUserIdAsync(int.Parse(userId));
+        var cart = await _cartRepository.GetCartByUserIdAsync(int.Parse(userId), false);
         var user = await _userRepository.GetByIdAsync(int.Parse(userId));
 
         if (cart == null || user == null) return new CartDto();
